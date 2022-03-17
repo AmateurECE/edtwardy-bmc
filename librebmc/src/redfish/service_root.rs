@@ -7,7 +7,7 @@
 //
 // CREATED:         03/16/2022
 //
-// LAST EDITED:     03/16/2022
+// LAST EDITED:     03/17/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -35,31 +35,38 @@ use std::path::PathBuf;
 
 use hyper::{Body, Request, Response};
 use routerify::prelude::*;
+use routerify::Router;
 use serde_json;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use derive_builder::Builder;
 use uuid::Uuid;
 
+const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
+const SERVICE_PATH: &'static str = "/redfish/v1";
+const SCHEMA_VERSION: &'static str = "1.6.0";
+const DEFAULT_NAME: &'static str = "Root Service";
+const DEFAULT_ID: &'static str = "RootService";
+
 // Define an app state to share it across the route handlers and middlewares.
 #[derive(Default, Builder)]
 #[builder(setter(into))]
 pub struct ServiceRoot {
-    #[builder(default = "\"#ServiceRoot.v1_12_0.ServiceRoot\".to_string()")]
+    #[builder(default = "ODATA_TYPE.to_string()")]
     odata_type: String,
 
-    #[builder(default = "\"RootService\".to_string()")]
+    #[builder(default = "DEFAULT_ID.to_string()")]
     id: String,
 
-    #[builder(default = "\"Root Service\".to_string()")]
+    #[builder(default = "DEFAULT_NAME.to_string()")]
     name: String,
 
-    #[builder(default = "\"1.6.0\".to_string()")]
+    #[builder(default = "SCHEMA_VERSION.to_string()")]
     redfish_version: String,
 
     #[builder(default)]
     uuid: Uuid,
 
-    #[builder(default)]
+    #[builder(default = "PathBuf::from(SERVICE_PATH)")]
     odata_id: PathBuf,
 }
 
@@ -78,12 +85,24 @@ impl Serialize for ServiceRoot {
     }
 }
 
-pub async fn v1_service_root(request: Request<Body>) ->
+pub async fn get(request: Request<Body>) ->
     Result<Response<Body>, Infallible>
 {
     let service = request.data::<ServiceRoot>().unwrap();
     Ok(Response::new(Body::from(
         serde_json::to_string::<ServiceRoot>(&service).unwrap())))
+}
+
+// Create a `Router<Body, Infallible>` for response body type `hyper::Body`
+// and for handler error type `Infallible`.
+pub fn route(service: ServiceRoot) -> Router<Body, Infallible> {
+    Router::builder()
+        // Specify the state data which will be available to every route
+        // handlers, error handler and middlewares.
+        .data(service)
+        .get(SERVICE_PATH, get)
+        .build()
+        .unwrap()
 }
 
 ///////////////////////////////////////////////////////////////////////////////

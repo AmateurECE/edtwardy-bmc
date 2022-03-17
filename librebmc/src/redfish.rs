@@ -31,8 +31,7 @@
 // IN THE SOFTWARE.
 ////
 
-mod service_root;
-pub use service_root::v1_service_root;
+pub mod service_root;
 pub use service_root::ServiceRoot;
 pub use service_root::ServiceRootBuilder;
 
