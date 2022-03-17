@@ -31,60 +31,9 @@
 // IN THE SOFTWARE.
 ////
 
-use std::{convert::{From, Infallible}, default::Default};
-use std::path::PathBuf;
-
-use hyper::{Body, Request, Response};
-use routerify::prelude::*;
-use serde_json;
-use serde::{Serialize, Serializer, ser::SerializeStruct};
-use derive_builder::Builder;
-use uuid::Uuid;
-
-// Define an app state to share it across the route handlers and middlewares.
-#[derive(Default, Builder)]
-#[builder(setter(into))]
-pub struct RedfishService {
-    #[builder(default = "\"#ServiceRoot.v1_12_0.ServiceRoot\".to_string()")]
-    odata_type: String,
-
-    #[builder(default = "\"RootService\".to_string()")]
-    id: String,
-
-    #[builder(default = "\"Root Service\".to_string()")]
-    name: String,
-
-    #[builder(default = "\"1.6.0\".to_string()")]
-    redfish_version: String,
-
-    #[builder(default)]
-    uuid: Uuid,
-
-    #[builder(default)]
-    odata_id: PathBuf,
-}
-
-impl Serialize for RedfishService {
-    fn serialize<S: Serializer>(&self, serializer: S) ->
-        Result<S::Ok, S::Error>
-    {
-        let mut state = serializer.serialize_struct("ServiceRoot", 6)?;
-        state.serialize_field("Id", &self.id)?;
-        state.serialize_field("Name", &self.name)?;
-        state.serialize_field("RedfishVersion", &self.redfish_version)?;
-        state.serialize_field("UUID", &self.uuid)?;
-        state.serialize_field("@odata.id", &self.odata_id)?;
-        state.serialize_field("@odata.type", &self.odata_type)?;
-        state.end()
-    }
-}
-
-pub async fn v1_service_root(request: Request<Body>) ->
-    Result<Response<Body>, Infallible>
-{
-    let service = request.data::<RedfishService>().unwrap();
-    Ok(Response::new(Body::from(
-        serde_json::to_string::<RedfishService>(&service).unwrap())))
-}
+mod service_root;
+pub use service_root::v1_service_root;
+pub use service_root::ServiceRoot;
+pub use service_root::ServiceRootBuilder;
 
 ///////////////////////////////////////////////////////////////////////////////

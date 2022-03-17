@@ -61,7 +61,7 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) ->
 // and for handler error type `Infallible`.
 fn router() -> Router<Body, Infallible> {
     let service_path = "/redfish/v1";
-    let service = redfish::RedfishServiceBuilder::default()
+    let service = redfish::ServiceRootBuilder::default()
         .odata_id(PathBuf::from(service_path))
         .build()
         .unwrap();
