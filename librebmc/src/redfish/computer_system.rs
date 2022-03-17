@@ -1,11 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
-// NAME:            service_root.rs
+// NAME:            computer_system.rs
 //
 // AUTHOR:          Ethan D. Twardy <ethan.twardy@gmail.com>
 //
-// DESCRIPTION:     Service Root
+// DESCRIPTION:     Resources for mutating and querying computer systems.
 //
-// CREATED:         03/16/2022
+// CREATED:         03/17/2022
 //
 // LAST EDITED:     03/17/2022
 //
@@ -30,8 +30,9 @@
 // IN THE SOFTWARE.
 ////
 
-use std::{convert::{From, Infallible}, default::Default};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::convert::{From, Infallible};
+use std::{default::Default, path::{Path, PathBuf}};
 
 use hyper::{Body, Request, Response};
 use routerify::prelude::*;
@@ -39,59 +40,76 @@ use routerify::Router;
 use serde_json;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use derive_builder::Builder;
-use uuid::Uuid;
 
 use crate::redfish::{ServiceEndpoint, ServiceId};
 
-const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
-const SERVICE_PATH: &'static str = "/redfish/v1";
-const SCHEMA_VERSION: &'static str = "1.6.0";
-const DEFAULT_NAME: &'static str = "Root Service";
-const DEFAULT_ID: &'static str = "RootService";
+///////////////////////////////////////////////////////////////////////////////
+// ComputerSystem
+////
 
-// Define an app state to share it across the route handlers and middlewares.
-#[derive(Builder, Default)]
+#[derive(Builder, Clone, Default)]
 #[builder(setter(into))]
-pub struct ServiceRoot {
-    #[builder(default = "ODATA_TYPE.to_string()")]
-    odata_type: String,
-
-    #[builder(default = "DEFAULT_ID.to_string()")]
-    id: String,
-
-    #[builder(default = "DEFAULT_NAME.to_string()")]
-    name: String,
-
-    #[builder(default = "SCHEMA_VERSION.to_string()")]
-    redfish_version: String,
-
-    #[builder(default)]
-    uuid: Uuid,
-
+pub struct ComputerSystem {
     #[builder(default)]
     odata_id: PathBuf,
-
-    #[builder(default)]
-    systems: ServiceId,
 }
 
-impl ServiceEndpoint for ServiceRoot {
+impl Serialize for ComputerSystem {
+    fn serialize<S: Serializer>(&self, serializer: S) ->
+        Result<S::Ok, S::Error>
+    {
+        let mut state = serializer.serialize_struct("ComputerSystem", 1)?;
+        state.serialize_field("@odata.id", &self.odata_id)?;
+        state.end()
+    }
+}
+
+impl ServiceEndpoint for ComputerSystem {
     fn get_id(&self) -> &Path { &self.odata_id }
     fn set_id(&mut self, id: PathBuf) { self.odata_id = id; }
 }
 
-impl Serialize for ServiceRoot {
+///////////////////////////////////////////////////////////////////////////////
+// ComputerSystemCollection
+////
+
+const ODATA_TYPE: &'static str =
+    "#ComputerSystemCollection.ComputerSystemCollection";
+const DEFAULT_NAME: &'static str = "Computer System Collection";
+const SERVICE_PATH: &'static str = "/Systems";
+
+#[derive(Builder, Clone, Default)]
+#[builder(setter(into))]
+pub struct ComputerSystemCollection {
+    #[builder(default = "ODATA_TYPE.to_string()")]
+    odata_type: String,
+
+    #[builder(default)]
+    odata_id: PathBuf,
+
+    #[builder(default = "DEFAULT_NAME.to_string()")]
+    name: String,
+
+    #[builder(default)]
+    members: HashMap<String, ServiceId>,
+}
+
+impl ServiceEndpoint for ComputerSystemCollection {
+    fn get_id(&self) -> &Path { &self.odata_id }
+    fn set_id(&mut self, id: PathBuf) { self.odata_id = id; }
+}
+
+impl Serialize for ComputerSystemCollection {
     fn serialize<S: Serializer>(&self, serializer: S) ->
         Result<S::Ok, S::Error>
     {
-        let mut state = serializer.serialize_struct("ServiceRoot", 7)?;
-        state.serialize_field("Id", &self.id)?;
+        let mut state = serializer.serialize_struct(
+            "ComputerSystemCollection", 5)?;
         state.serialize_field("Name", &self.name)?;
-        state.serialize_field("RedfishVersion", &self.redfish_version)?;
-        state.serialize_field("UUID", &self.uuid)?;
+        state.serialize_field("Members@odata.count", &self.members.len())?;
+        state.serialize_field("Members", &self.members)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
         state.serialize_field("@odata.type", &self.odata_type)?;
-        state.serialize_field("Systems", &self.systems)?;
         state.end()
     }
 }
@@ -99,14 +117,14 @@ impl Serialize for ServiceRoot {
 pub async fn get(request: Request<Body>) ->
     Result<Response<Body>, Infallible>
 {
-    let service = request.data::<ServiceRoot>().unwrap();
+    let service = request.data::<ComputerSystemCollection>().unwrap();
     Ok(Response::new(Body::from(
-        serde_json::to_string::<ServiceRoot>(&service).unwrap())))
+        serde_json::to_string::<ComputerSystemCollection>(&service).unwrap())))
 }
 
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
-pub fn route(id: PathBuf, mut service: ServiceRoot) ->
+pub fn route(id: PathBuf, mut service: ComputerSystemCollection) ->
     Router<Body, Infallible>
 {
     let mountpoint = id.join(SERVICE_PATH);

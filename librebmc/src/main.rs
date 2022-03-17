@@ -30,7 +30,7 @@
 // IN THE SOFTWARE.
 ////
 
-use std::{convert::Infallible, net::SocketAddr};
+use std::{convert::Infallible, net::SocketAddr, path::PathBuf};
 
 use hyper::{Body, Request, Response, Server, StatusCode};
 // Import the routerify prelude traits.
@@ -38,6 +38,7 @@ use routerify::prelude::*;
 use routerify::{Middleware, Router, RouterService, RequestInfo};
 
 mod redfish;
+use redfish::ServiceEndpoint;
 
 // A middleware which logs an http request.
 async fn logger(req: Request<Body>) -> Result<Request<Body>, Infallible> {
@@ -60,8 +61,13 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) ->
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
 fn router() -> Router<Body, Infallible> {
+    let mountpoint = PathBuf::from("/");
+    let systems = redfish::ComputerSystemCollectionBuilder::default().build()
+        .unwrap();
     let service = redfish::service_root::route(
+        mountpoint.clone(),
         redfish::ServiceRootBuilder::default()
+            .systems(systems.get_id().to_owned())
             .build()
             .unwrap()
     );
@@ -73,7 +79,7 @@ fn router() -> Router<Body, Infallible> {
     // Specify the state data which will be available to every route
     // handlers, error handler and middlewares.
         .middleware(Middleware::pre(logger))
-        .scope("/", service)
+        .scope(mountpoint.into_os_string().into_string().unwrap(), service)
         .err_handler_with_info(error_handler)
         .build()
         .unwrap()

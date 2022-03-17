@@ -8,7 +8,7 @@
 //
 // CREATED:         03/16/2022
 //
-// LAST EDITED:     03/16/2022
+// LAST EDITED:     03/17/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -31,8 +31,46 @@
 // IN THE SOFTWARE.
 ////
 
+use std::{convert::From, default::Default, path::{Path, PathBuf}};
+use serde::{Serializer, Serialize, ser::SerializeStruct};
+
 pub mod service_root;
 pub use service_root::ServiceRoot;
 pub use service_root::ServiceRootBuilder;
+
+pub mod computer_system;
+pub use computer_system::ComputerSystemCollection;
+pub use computer_system::ComputerSystemCollectionBuilder;
+
+///////////////////////////////////////////////////////////////////////////////
+// ServiceId
+////
+
+#[derive(Clone, Default)]
+pub struct ServiceId {
+    odata_id: PathBuf,
+}
+
+impl From<PathBuf> for ServiceId {
+    fn from(value: PathBuf) -> Self {
+        ServiceId { odata_id: value }
+    }
+}
+
+impl Serialize for ServiceId {
+    fn serialize<S: Serializer>(&self, serializer: S) ->
+        Result<S::Ok, S::Error>
+    {
+        let mut state = serializer.serialize_struct("ServiceId", 1)?;
+        state.serialize_field("@odata.id", &self.odata_id)?;
+        state.end()
+    }
+}
+
+// Trait can be used to get exact routes to service endpoints.
+pub trait ServiceEndpoint {
+    fn get_id(&self) -> &Path;
+    fn set_id(&mut self, id: PathBuf);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
