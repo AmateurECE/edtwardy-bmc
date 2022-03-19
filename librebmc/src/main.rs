@@ -60,11 +60,11 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) ->
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
 fn router() -> Router<Body, Infallible> {
-    // let mut systems = redfish::ComputerSystemCollectionBuilder::default()
-    //     .build().unwrap();
+    let systems = redfish::ComputerSystemCollectionBuilder::default().build()
+        .unwrap();
     let service = redfish::service_root::route(
         redfish::ServiceRootBuilder::default()
-            // .systems(&mut systems)
+            .systems(&systems)
             .build()
             .unwrap()
     );

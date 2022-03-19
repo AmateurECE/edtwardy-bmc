@@ -43,7 +43,8 @@ use derive_builder::Builder;
 use uuid::Uuid;
 
 // use crate::redfish::ComputerSystemCollection;
-use crate::redfish::ServiceEndpoint;
+use crate::redfish::{ServiceEndpoint, ServiceId};
+use crate::redfish::ComputerSystemCollection;
 
 const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
 const SERVICE_PATH: &'static str = "/redfish/v1";
@@ -73,25 +74,23 @@ pub struct ServiceRoot<'a> {
     #[builder(default = "Cow::Owned(PathBuf::from(SERVICE_PATH))")]
     odata_id: Cow<'a, PathBuf>,
 
-    // #[builder(setter(custom))]
-    // systems: ServiceId,
+    #[builder(default, setter(custom))]
+    systems: ServiceId<'a>,
 }
 
-// impl ServiceRootBuilder {
-//     pub fn systems(&mut self, collection: &mut ComputerSystemCollection) ->
-//         &mut ServiceRootBuilder
-//     {
-//         self.systems = Some(ServiceId::from(collection.get_id().to_owned()));
-//         self
-//     }
-// }
+impl ServiceRootBuilder<'_> {
+    pub fn systems(&mut self, value: &ComputerSystemCollection) -> &mut Self {
+        self.systems = Some(value.get_id().to_owned().into());
+        self
+    }
+}
 
 impl ServiceEndpoint for ServiceRoot<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
     fn resolve(&self, path: PathBuf) -> Self {
         let mut result = self.clone();
-        result.odata_id = Cow::Owned(path);
-        // result.systems = result.odata_id.join(result.systems).into();
+        result.odata_id = Cow::Owned(path.clone());
+        result.systems = path.join(result.systems.as_ref()).into();
         result
     }
 }
@@ -107,7 +106,7 @@ impl Serialize for ServiceRoot<'_> {
         state.serialize_field("UUID", &self.uuid)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
         state.serialize_field("@odata.type", &self.odata_type)?;
-        // state.serialize_field("Systems", &self.systems)?;
+        state.serialize_field("Systems", &self.systems)?;
         state.end()
     }
 }

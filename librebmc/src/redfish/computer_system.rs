@@ -122,7 +122,8 @@ impl Serialize for ComputerSystemCollection<'_> {
 pub async fn get(request: Request<Body>) ->
     Result<Response<Body>, Infallible>
 {
-    let service = request.data::<ComputerSystemCollection>().unwrap();
+    let service = request.data::<ComputerSystemCollection>().unwrap()
+        .resolve(PathBuf::from(request.uri().path()));
     Ok(Response::new(Body::from(
         serde_json::to_string::<ComputerSystemCollection>(&service).unwrap())))
 }
