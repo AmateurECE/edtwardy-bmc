@@ -35,9 +35,9 @@ use std::borrow::Cow;
 use std::{convert::From, default::Default, path::{Path, PathBuf}};
 use serde::{Serializer, Serialize, ser::SerializeStruct};
 
-// pub mod service_root;
-// pub use service_root::ServiceRoot;
-// pub use service_root::ServiceRootBuilder;
+pub mod service_root;
+pub use service_root::ServiceRoot;
+pub use service_root::ServiceRootBuilder;
 
 // pub mod computer_system;
 // pub use computer_system::ComputerSystemCollection;

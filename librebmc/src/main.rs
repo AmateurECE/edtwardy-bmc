@@ -62,12 +62,12 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) ->
 fn router() -> Router<Body, Infallible> {
     // let mut systems = redfish::ComputerSystemCollectionBuilder::default()
     //     .build().unwrap();
-    // let service = redfish::service_root::route(
-    //     redfish::ServiceRootBuilder::default()
-    //         .systems(&mut systems)
-    //         .build()
-    //         .unwrap()
-    // );
+    let service = redfish::service_root::route(
+        redfish::ServiceRootBuilder::default()
+            // .systems(&mut systems)
+            .build()
+            .unwrap()
+    );
 
     // Create a router and specify the logger middleware and the handlers.
     // Here, "Middleware::pre" means we're adding a pre middleware which will
@@ -76,7 +76,7 @@ fn router() -> Router<Body, Infallible> {
     // Specify the state data which will be available to every route
     // handlers, error handler and middlewares.
         .middleware(Middleware::pre(logger))
-        // .scope("/", service)
+        .scope("/", service)
         .err_handler_with_info(error_handler)
         .build()
         .unwrap()
