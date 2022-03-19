@@ -7,7 +7,7 @@
 //
 // CREATED:         03/16/2022
 //
-// LAST EDITED:     03/18/2022
+// LAST EDITED:     03/19/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -89,8 +89,8 @@ impl ServiceEndpoint for ServiceRoot<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
     fn resolve(&self, path: PathBuf) -> Self {
         let mut result = self.clone();
-        result.odata_id = Cow::Owned(path.clone());
         result.systems = path.join(result.systems.as_ref()).into();
+        result.odata_id = Cow::Owned(path);
         result
     }
 }

@@ -7,7 +7,7 @@
 //
 // CREATED:         03/17/2022
 //
-// LAST EDITED:     03/18/2022
+// LAST EDITED:     03/19/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -77,7 +77,7 @@ use crate::redfish::{ServiceEndpoint, ServiceId};
 const ODATA_TYPE: &'static str =
     "#ComputerSystemCollection.ComputerSystemCollection";
 const DEFAULT_NAME: &'static str = "Computer System Collection";
-const SERVICE_PATH: &'static str = "/Systems";
+const SERVICE_PATH: &'static str = "Systems";
 
 #[derive(Builder, Clone, Default)]
 #[builder(setter(into))]
