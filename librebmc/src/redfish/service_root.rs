@@ -47,7 +47,7 @@ use crate::redfish::{ServiceEndpoint, ServiceId};
 use crate::redfish::ComputerSystemCollection;
 
 const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
-const SERVICE_PATH: &'static str = "/redfish/v1";
+const SERVICE_PATH: &'static str = "redfish/v1";
 const SCHEMA_VERSION: &'static str = "1.6.0";
 const DEFAULT_NAME: &'static str = "Root Service";
 const DEFAULT_ID: &'static str = "RootService";
@@ -123,8 +123,8 @@ pub async fn get(request: Request<Body>) ->
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
 pub fn route(service: ServiceRoot<'static>) -> Router<Body, Infallible> {
-    let mountpoint = service.get_id().to_owned().into_os_string()
-        .into_string().unwrap();
+    let mountpoint = "/".to_string() + service.get_id().to_owned().as_os_str()
+        .to_str().unwrap();
     Router::builder()
         // Specify the state data which will be available to every route
         // handlers, error handler and middlewares.
