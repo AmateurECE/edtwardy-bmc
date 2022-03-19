@@ -85,7 +85,7 @@ pub struct ComputerSystemCollection<'a> {
     #[builder(default = "ODATA_TYPE.to_string()")]
     odata_type: String,
 
-    #[builder(default)]
+    #[builder(default = "Cow::Owned(PathBuf::from(SERVICE_PATH))")]
     odata_id: Cow<'a, PathBuf>,
 
     #[builder(default = "DEFAULT_NAME.to_string()")]
@@ -97,6 +97,11 @@ pub struct ComputerSystemCollection<'a> {
 
 impl ServiceEndpoint for ComputerSystemCollection<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
+    fn resolve(&self, path: PathBuf) -> Self {
+        let mut result = self.clone();
+        result.odata_id = Cow::Owned(path);
+        result
+    }
 }
 
 impl Serialize for ComputerSystemCollection<'_> {
@@ -124,15 +129,16 @@ pub async fn get(request: Request<Body>) ->
 
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
-pub fn route(id: PathBuf, mut service: ComputerSystemCollection<'static>) ->
+pub fn route(service: ComputerSystemCollection<'static>) ->
     Router<Body, Infallible>
 {
-    let mountpoint = id.join(SERVICE_PATH);
+    let mountpoint = service.get_id().to_owned().into_os_string().into_string()
+        .unwrap();
     Router::builder()
         // Specify the state data which will be available to every route
         // handlers, error handler and middlewares.
         .data(service)
-        .get(mountpoint.into_os_string().into_string().unwrap(), get)
+        .get(mountpoint, get)
         .build()
         .unwrap()
 }

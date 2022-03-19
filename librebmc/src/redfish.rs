@@ -75,6 +75,7 @@ impl Serialize for ServiceId<'_> {
 // Trait can be used to get exact routes to service endpoints.
 pub trait ServiceEndpoint {
     fn get_id(&self) -> &Path;
+    fn resolve(&self, path: PathBuf) -> Self;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -88,13 +88,9 @@ pub struct ServiceRoot<'a> {
 
 impl ServiceEndpoint for ServiceRoot<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
-}
-
-impl ServiceRoot<'_> {
-    pub fn resolve(&self, path: PathBuf) -> Self {
+    fn resolve(&self, path: PathBuf) -> Self {
         let mut result = self.clone();
         result.odata_id = Cow::Owned(path);
-        println!("Path: {}", result.odata_id.display());
         // result.systems = result.odata_id.join(result.systems).into();
         result
     }
