@@ -7,7 +7,7 @@
 //
 // CREATED:         03/16/2022
 //
-// LAST EDITED:     03/17/2022
+// LAST EDITED:     03/18/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,6 +30,7 @@
 // IN THE SOFTWARE.
 ////
 
+use std::borrow::{Borrow, Cow};
 use std::{convert::{From, Infallible}, default::Default};
 use std::path::{Path, PathBuf};
 
@@ -41,6 +42,7 @@ use serde::{Serialize, Serializer, ser::SerializeStruct};
 use derive_builder::Builder;
 use uuid::Uuid;
 
+// use crate::redfish::ComputerSystemCollection;
 use crate::redfish::{ServiceEndpoint, ServiceId};
 
 const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
@@ -52,32 +54,49 @@ const DEFAULT_ID: &'static str = "RootService";
 // Define an app state to share it across the route handlers and middlewares.
 #[derive(Builder, Default)]
 #[builder(setter(into))]
-pub struct ServiceRoot {
-    #[builder(default = "ODATA_TYPE.to_string()")]
-    odata_type: String,
+pub struct ServiceRoot<'a> {
+    #[builder(default = "Cow::from(ODATA_TYPE)")]
+    odata_type: Cow<'a, str>,
 
-    #[builder(default = "DEFAULT_ID.to_string()")]
-    id: String,
+    #[builder(default = "Cow::from(DEFAULT_ID)")]
+    id: Cow<'a, str>,
 
-    #[builder(default = "DEFAULT_NAME.to_string()")]
-    name: String,
+    #[builder(default = "Cow::from(DEFAULT_NAME)")]
+    name: Cow<'a, str>,
 
-    #[builder(default = "SCHEMA_VERSION.to_string()")]
-    redfish_version: String,
+    #[builder(default = "Cow::from(SCHEMA_VERSION)")]
+    redfish_version: Cow<'a, str>,
 
     #[builder(default)]
     uuid: Uuid,
 
-    #[builder(default)]
-    odata_id: PathBuf,
+    #[builder(default = "Cow::from(PathBuf::from(SERVICE_PATH))")]
+    odata_id: Cow<'a, PathBuf>,
 
-    #[builder(default)]
-    systems: ServiceId,
+    // #[builder(setter(custom))]
+    // systems: ServiceId,
 }
+
+// impl ServiceRootBuilder {
+//     pub fn systems(&mut self, collection: &mut ComputerSystemCollection) ->
+//         &mut ServiceRootBuilder
+//     {
+//         self.systems = Some(ServiceId::from(collection.get_id().to_owned()));
+//         self
+//     }
+// }
 
 impl ServiceEndpoint for ServiceRoot {
     fn get_id(&self) -> &Path { &self.odata_id }
-    fn set_id(&mut self, id: PathBuf) { self.odata_id = id; }
+}
+
+impl ServiceRoot {
+    pub fn resolve(&self, path: PathBuf) -> Self {
+        let mut result = *self.to_owned();
+        result.odata_id = path.join(result.odata_id);
+        result.systems = result.odata_id.join(result.systems).into();
+        result
+    }
 }
 
 impl Serialize for ServiceRoot {
@@ -99,23 +118,22 @@ impl Serialize for ServiceRoot {
 pub async fn get(request: Request<Body>) ->
     Result<Response<Body>, Infallible>
 {
-    let service = request.data::<ServiceRoot>().unwrap();
+    let service = request.data::<ServiceRoot>().unwrap()
+        .resolve(PathBuf::from(request.uri().path()));
     Ok(Response::new(Body::from(
         serde_json::to_string::<ServiceRoot>(&service).unwrap())))
 }
 
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
-pub fn route(id: PathBuf, mut service: ServiceRoot) ->
-    Router<Body, Infallible>
-{
-    let mountpoint = id.join(SERVICE_PATH);
-    service.set_id(mountpoint.clone().into());
+pub fn route(service: ServiceRoot) -> Router<Body, Infallible> {
+    let mountpoint = service.get_id().to_owned().into_os_string()
+        .into_string().unwrap();
     Router::builder()
         // Specify the state data which will be available to every route
         // handlers, error handler and middlewares.
         .data(service)
-        .get(mountpoint.into_os_string().into_string().unwrap(), get)
+        .get(mountpoint, get)
         .build()
         .unwrap()
 }

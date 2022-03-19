@@ -7,7 +7,7 @@
 //
 // CREATED:         02/26/2022
 //
-// LAST EDITED:     03/17/2022
+// LAST EDITED:     03/18/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,7 +30,7 @@
 // IN THE SOFTWARE.
 ////
 
-use std::{convert::Infallible, net::SocketAddr, path::PathBuf};
+use std::{convert::Infallible, net::SocketAddr};
 
 use hyper::{Body, Request, Response, Server, StatusCode};
 // Import the routerify prelude traits.
@@ -38,7 +38,6 @@ use routerify::prelude::*;
 use routerify::{Middleware, Router, RouterService, RequestInfo};
 
 mod redfish;
-use redfish::ServiceEndpoint;
 
 // A middleware which logs an http request.
 async fn logger(req: Request<Body>) -> Result<Request<Body>, Infallible> {
@@ -61,16 +60,14 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) ->
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
 fn router() -> Router<Body, Infallible> {
-    let mountpoint = PathBuf::from("/");
-    let systems = redfish::ComputerSystemCollectionBuilder::default().build()
-        .unwrap();
-    let service = redfish::service_root::route(
-        mountpoint.clone(),
-        redfish::ServiceRootBuilder::default()
-            .systems(systems.get_id().to_owned())
-            .build()
-            .unwrap()
-    );
+    // let mut systems = redfish::ComputerSystemCollectionBuilder::default()
+    //     .build().unwrap();
+    // let service = redfish::service_root::route(
+    //     redfish::ServiceRootBuilder::default()
+    //         .systems(&mut systems)
+    //         .build()
+    //         .unwrap()
+    // );
 
     // Create a router and specify the logger middleware and the handlers.
     // Here, "Middleware::pre" means we're adding a pre middleware which will
@@ -79,7 +76,7 @@ fn router() -> Router<Body, Infallible> {
     // Specify the state data which will be available to every route
     // handlers, error handler and middlewares.
         .middleware(Middleware::pre(logger))
-        .scope(mountpoint.into_os_string().into_string().unwrap(), service)
+        // .scope("/", service)
         .err_handler_with_info(error_handler)
         .build()
         .unwrap()
