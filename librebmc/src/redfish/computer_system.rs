@@ -7,7 +7,7 @@
 //
 // CREATED:         03/17/2022
 //
-// LAST EDITED:     03/17/2022
+// LAST EDITED:     03/18/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,6 +30,7 @@
 // IN THE SOFTWARE.
 ////
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::{From, Infallible};
 use std::{default::Default, path::{Path, PathBuf}};
@@ -47,27 +48,27 @@ use crate::redfish::{ServiceEndpoint, ServiceId};
 // ComputerSystem
 ////
 
-#[derive(Builder, Clone, Default)]
-#[builder(setter(into))]
-pub struct ComputerSystem {
-    #[builder(default)]
-    odata_id: PathBuf,
-}
+// #[derive(Builder, Clone, Default)]
+// #[builder(setter(into))]
+// pub struct ComputerSystem {
+//     #[builder(default)]
+//     odata_id: PathBuf,
+// }
 
-impl Serialize for ComputerSystem {
-    fn serialize<S: Serializer>(&self, serializer: S) ->
-        Result<S::Ok, S::Error>
-    {
-        let mut state = serializer.serialize_struct("ComputerSystem", 1)?;
-        state.serialize_field("@odata.id", &self.odata_id)?;
-        state.end()
-    }
-}
+// impl Serialize for ComputerSystem {
+//     fn serialize<S: Serializer>(&self, serializer: S) ->
+//         Result<S::Ok, S::Error>
+//     {
+//         let mut state = serializer.serialize_struct("ComputerSystem", 1)?;
+//         state.serialize_field("@odata.id", &self.odata_id)?;
+//         state.end()
+//     }
+// }
 
-impl ServiceEndpoint for ComputerSystem {
-    fn get_id(&self) -> &Path { &self.odata_id }
-    fn set_id(&mut self, id: PathBuf) { self.odata_id = id; }
-}
+// impl ServiceEndpoint for ComputerSystem {
+//     fn get_id(&self) -> &Path { &self.odata_id }
+//     fn set_id(&mut self, id: PathBuf) { self.odata_id = id; }
+// }
 
 ///////////////////////////////////////////////////////////////////////////////
 // ComputerSystemCollection
@@ -80,26 +81,25 @@ const SERVICE_PATH: &'static str = "/Systems";
 
 #[derive(Builder, Clone, Default)]
 #[builder(setter(into))]
-pub struct ComputerSystemCollection {
+pub struct ComputerSystemCollection<'a> {
     #[builder(default = "ODATA_TYPE.to_string()")]
     odata_type: String,
 
     #[builder(default)]
-    odata_id: PathBuf,
+    odata_id: Cow<'a, PathBuf>,
 
     #[builder(default = "DEFAULT_NAME.to_string()")]
     name: String,
 
     #[builder(default)]
-    members: HashMap<String, ServiceId>,
+    members: HashMap<String, ServiceId<'a>>,
 }
 
-impl ServiceEndpoint for ComputerSystemCollection {
+impl ServiceEndpoint for ComputerSystemCollection<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
-    fn set_id(&mut self, id: PathBuf) { self.odata_id = id; }
 }
 
-impl Serialize for ComputerSystemCollection {
+impl Serialize for ComputerSystemCollection<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) ->
         Result<S::Ok, S::Error>
     {
@@ -124,11 +124,10 @@ pub async fn get(request: Request<Body>) ->
 
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
-pub fn route(id: PathBuf, mut service: ComputerSystemCollection) ->
+pub fn route(id: PathBuf, mut service: ComputerSystemCollection<'static>) ->
     Router<Body, Infallible>
 {
     let mountpoint = id.join(SERVICE_PATH);
-    service.set_id(mountpoint.clone().into());
     Router::builder()
         // Specify the state data which will be available to every route
         // handlers, error handler and middlewares.

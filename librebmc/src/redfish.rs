@@ -39,9 +39,9 @@ pub mod service_root;
 pub use service_root::ServiceRoot;
 pub use service_root::ServiceRootBuilder;
 
-// pub mod computer_system;
-// pub use computer_system::ComputerSystemCollection;
-// pub use computer_system::ComputerSystemCollectionBuilder;
+pub mod computer_system;
+pub use computer_system::ComputerSystemCollection;
+pub use computer_system::ComputerSystemCollectionBuilder;
 
 ///////////////////////////////////////////////////////////////////////////////
 // ServiceId
