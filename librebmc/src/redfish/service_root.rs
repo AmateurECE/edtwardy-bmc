@@ -74,22 +74,14 @@ pub struct ServiceRoot<'a> {
     #[builder(default = "Cow::Owned(PathBuf::from(SERVICE_PATH))")]
     odata_id: Cow<'a, PathBuf>,
 
-    #[builder(default, setter(custom))]
-    systems: ServiceId<'a>,
-}
-
-impl ServiceRootBuilder<'_> {
-    pub fn systems(&mut self, value: &ComputerSystemCollection) -> &mut Self {
-        self.systems = Some(value.get_id().to_owned().into());
-        self
-    }
+    #[builder(default)]
+    systems: ComputerSystemCollection<'a>,
 }
 
 impl ServiceEndpoint for ServiceRoot<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
     fn resolve(&self, path: PathBuf) -> Self {
         let mut result = self.clone();
-        result.systems = path.join(result.systems.as_ref()).into();
         result.odata_id = Cow::Owned(path);
         result
     }
@@ -106,7 +98,10 @@ impl Serialize for ServiceRoot<'_> {
         state.serialize_field("UUID", &self.uuid)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
         state.serialize_field("@odata.type", &self.odata_type)?;
-        state.serialize_field("Systems", &self.systems)?;
+
+        let systems = ServiceId::from(self.odata_id.join(
+            self.systems.get_id()));
+        state.serialize_field("Systems", &systems)?;
         state.end()
     }
 }

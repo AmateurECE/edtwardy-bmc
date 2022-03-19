@@ -7,7 +7,7 @@
 //
 // CREATED:         02/26/2022
 //
-// LAST EDITED:     03/18/2022
+// LAST EDITED:     03/19/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -64,7 +64,7 @@ fn router() -> Router<Body, Infallible> {
         .unwrap();
     let service = redfish::service_root::route(
         redfish::ServiceRootBuilder::default()
-            .systems(&systems)
+            .systems(systems)
             .build()
             .unwrap()
     );

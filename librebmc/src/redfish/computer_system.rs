@@ -133,8 +133,8 @@ pub async fn get(request: Request<Body>) ->
 pub fn route(service: ComputerSystemCollection<'static>) ->
     Router<Body, Infallible>
 {
-    let mountpoint = service.get_id().to_owned().into_os_string().into_string()
-        .unwrap();
+    let mountpoint = "/".to_string() + service.get_id().to_owned().as_os_str()
+        .to_str().unwrap();
     Router::builder()
         // Specify the state data which will be available to every route
         // handlers, error handler and middlewares.
