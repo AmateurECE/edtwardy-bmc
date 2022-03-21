@@ -54,14 +54,27 @@ const DEFAULT_ID: &'static str = "RootService";
 
 // Define an app state to share it across the route handlers and middlewares.
 #[derive(Builder, Clone, Default)]
-#[builder(setter(into), build_fn(skip))]
+#[builder(setter(into))]
 pub struct ServiceRoot<'a> {
+    #[builder(default = "ODATA_TYPE.to_string()")]
     odata_type: String,
+
+    #[builder(default = "DEFAULT_ID.to_string()")]
     id: String,
+
+    #[builder(default = "DEFAULT_NAME.to_string()")]
     name: String,
+
+    #[builder(default = "SCHEMA_VERSION.to_string()")]
     redfish_version: String,
+
+    #[builder(default)]
     uuid: Uuid,
+
+    #[builder(default = "Cow::Owned(PathBuf::from(SERVICE_PATH))")]
     odata_id: Cow<'a, PathBuf>,
+
+    #[builder(default)]
     systems: ComputerSystemCollection<'a>,
 }
 
@@ -102,35 +115,18 @@ pub async fn get(request: Request<Body>) ->
         serde_json::to_string::<ServiceRoot>(&service).unwrap())))
 }
 
-impl ServiceRootBuilder<'static> {
-    // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
-    // and for handler error type `Infallible`.
-    pub fn build(&self) -> Router<Body, Infallible> {
-        let service = ServiceRoot {
-            odata_type: self.odata_type.as_ref()
-                .unwrap_or(&ODATA_TYPE.to_string()).clone(),
-            odata_id: self.odata_id.as_ref()
-                .unwrap_or(&Cow::Owned(PathBuf::from(SERVICE_PATH))).clone(),
-            id: self.id.as_ref().unwrap_or(&DEFAULT_ID.to_string()).clone(),
-            name: self.name.as_ref().unwrap_or(&DEFAULT_NAME.to_string())
-                .clone(),
-            redfish_version: self.redfish_version.as_ref()
-                .unwrap_or(&SCHEMA_VERSION.to_string()).clone(),
-            uuid: self.uuid.as_ref().unwrap_or(&Uuid::default()).clone(),
-            systems: self.systems.as_ref()
-                .unwrap_or(&ComputerSystemCollection::default()).clone(),
-        };
-        let mountpoint = "/".to_string() + service.get_id().to_owned()
-            .as_os_str().to_str().unwrap();
-        Router::builder()
+// Create a `Router<Body, Infallible>` for response body type `hyper::Body`
+// and for handler error type `Infallible`.
+pub fn route(service: ServiceRoot<'static>) -> Router<Body, Infallible> {
+    let mountpoint = "/".to_string() + service.get_id().to_owned().as_os_str()
+        .to_str().unwrap();
+    Router::builder()
         // Specify the state data which will be available to every route
         // handlers, error handler and middlewares.
-            .data(service)
-            .get(mountpoint, get)
-            // .scope(computer_system::route(self.systems.clone()))
-            .build()
-            .unwrap()
-    }
+        .data(service)
+        .get(mountpoint, get)
+        .build()
+        .unwrap()
 }
 
 ///////////////////////////////////////////////////////////////////////////////

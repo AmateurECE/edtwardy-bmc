@@ -62,9 +62,12 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) ->
 fn router() -> Router<Body, Infallible> {
     let systems = redfish::ComputerSystemCollectionBuilder::default().build()
         .unwrap();
-    let service = redfish::ServiceRootBuilder::default()
-        .systems(systems)
-        .build();
+    let service = redfish::service_root::route(
+        redfish::ServiceRootBuilder::default()
+            .systems(systems)
+            .build()
+            .unwrap()
+    );
 
     // Create a router and specify the logger middleware and the handlers.
     // Here, "Middleware::pre" means we're adding a pre middleware which will
