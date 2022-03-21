@@ -7,7 +7,7 @@
 //
 // CREATED:         03/17/2022
 //
-// LAST EDITED:     03/19/2022
+// LAST EDITED:     03/20/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -37,7 +37,6 @@ use std::{default::Default, path::{Path, PathBuf}};
 
 use hyper::{Body, Request, Response};
 use routerify::prelude::*;
-use routerify::Router;
 use serde_json;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use derive_builder::Builder;
@@ -119,29 +118,13 @@ impl Serialize for ComputerSystemCollection<'_> {
     }
 }
 
-pub async fn get(request: Request<Body>) ->
+pub async fn collection_get(request: Request<Body>) ->
     Result<Response<Body>, Infallible>
 {
     let service = request.data::<ComputerSystemCollection>().unwrap()
         .resolve(PathBuf::from(request.uri().path()));
     Ok(Response::new(Body::from(
         serde_json::to_string::<ComputerSystemCollection>(&service).unwrap())))
-}
-
-// Create a `Router<Body, Infallible>` for response body type `hyper::Body`
-// and for handler error type `Infallible`.
-pub fn route(service: ComputerSystemCollection<'static>) ->
-    Router<Body, Infallible>
-{
-    let mountpoint = "/".to_string() + service.get_id().to_owned().as_os_str()
-        .to_str().unwrap();
-    Router::builder()
-        // Specify the state data which will be available to every route
-        // handlers, error handler and middlewares.
-        .data(service)
-        .get(mountpoint, get)
-        .build()
-        .unwrap()
 }
 
 ///////////////////////////////////////////////////////////////////////////////

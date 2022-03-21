@@ -37,23 +37,30 @@ use routerify::Router;
 use crate::redfish::{self, ServiceEndpoint};
 
 pub fn compose() -> Router<Body, Infallible> {
+    // Construct service objects
     let systems = redfish::ComputerSystemCollectionBuilder::default().build()
         .unwrap();
-    // let systems_mountpoint = "/".to_string() + systems.get_id().as_os_str()
-    //     .into_str().unwrap();
-
     let service = redfish::ServiceRootBuilder::default()
         .systems(&systems)
         .build()
         .unwrap();
 
-    let service_mountpoint = "/".to_string() + service.get_id().to_owned()
-        .as_os_str().to_str().unwrap();
+    // Route requests for the ComputerSystemCollection
+    let systems_mountpoint = "/".to_string() + systems.get_id().as_os_str()
+        .to_str().unwrap();
+    let systems_router = Router::builder()
+        .data(systems)
+        .get(systems_mountpoint, redfish::computer_system::collection_get)
+        .build()
+        .unwrap();
+
+    // Route requests for the ServiceRoot
+    let service_mountpoint = "/".to_string() + service.get_id().as_os_str()
+        .to_str().unwrap();
     Router::builder()
-        // Specify the state data which will be available to every route
-        // handlers, error handler and middlewares.
         .data(service)
-        .get(service_mountpoint, redfish::service_root::get)
+        .get(&service_mountpoint, redfish::service_root::get)
+        .scope(&service_mountpoint, systems_router)
         .build()
         .unwrap()
 }
