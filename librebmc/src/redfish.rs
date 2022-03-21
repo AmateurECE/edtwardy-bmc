@@ -8,7 +8,7 @@
 //
 // CREATED:         03/16/2022
 //
-// LAST EDITED:     03/18/2022
+// LAST EDITED:     03/20/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -39,9 +39,13 @@ pub mod service_root;
 pub use service_root::ServiceRoot;
 pub use service_root::ServiceRootBuilder;
 
+pub mod computer_system_collection;
+pub use computer_system_collection::ComputerSystemCollection;
+pub use computer_system_collection::ComputerSystemCollectionBuilder;
+
 pub mod computer_system;
-pub use computer_system::ComputerSystemCollection;
-pub use computer_system::ComputerSystemCollectionBuilder;
+pub use computer_system::ComputerSystem;
+pub use computer_system::ComputerSystemBuilder;
 
 ///////////////////////////////////////////////////////////////////////////////
 // ServiceId

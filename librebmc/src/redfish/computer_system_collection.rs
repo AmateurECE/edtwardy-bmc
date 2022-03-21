@@ -1,11 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
-// NAME:            computer_system.rs
+// NAME:            computer_system_collection.rs
 //
 // AUTHOR:          Ethan D. Twardy <ethan.twardy@gmail.com>
 //
-// DESCRIPTION:     Resources for mutating and querying computer systems.
+// DESCRIPTION:     ComputerSystemCollection endpoint.
 //
-// CREATED:         03/17/2022
+// CREATED:         03/20/2022
 //
 // LAST EDITED:     03/20/2022
 //
@@ -30,6 +30,8 @@
 // IN THE SOFTWARE.
 ////
 
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::convert::{From, Infallible};
 use std::{default::Default, path::{Path, PathBuf}};
 
@@ -39,40 +41,59 @@ use serde_json;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use derive_builder::Builder;
 
-use crate::redfish::ServiceEndpoint;
+use crate::redfish::{ServiceEndpoint, ServiceId};
 
-///////////////////////////////////////////////////////////////////////////////
-// ComputerSystem
-////
+const ODATA_TYPE: &'static str =
+    "#ComputerSystemCollection.ComputerSystemCollection";
+const DEFAULT_NAME: &'static str = "Computer System Collection";
+const SERVICE_PATH: &'static str = "Systems";
 
 #[derive(Builder, Clone, Default)]
 #[builder(setter(into))]
-pub struct ComputerSystem {
+pub struct ComputerSystemCollection<'a> {
+    #[builder(default = "ODATA_TYPE.to_string()")]
+    odata_type: String,
+
+    #[builder(default = "Cow::Owned(PathBuf::from(SERVICE_PATH))")]
+    odata_id: Cow<'a, PathBuf>,
+
+    #[builder(default = "DEFAULT_NAME.to_string()")]
+    name: String,
+
     #[builder(default)]
-    odata_id: PathBuf,
+    members: HashMap<String, ServiceId<'a>>,
 }
 
-impl ServiceEndpoint for ComputerSystem {
+impl ServiceEndpoint for ComputerSystemCollection<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
-    fn resolve(&self, _: PathBuf) -> Self { self.clone() }
+    fn resolve(&self, path: PathBuf) -> Self {
+        let mut result = self.clone();
+        result.odata_id = Cow::Owned(path);
+        result
+    }
 }
 
-impl Serialize for ComputerSystem {
+impl Serialize for ComputerSystemCollection<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) ->
         Result<S::Ok, S::Error>
     {
-        let mut state = serializer.serialize_struct("ComputerSystem", 1)?;
+        let mut state = serializer.serialize_struct(
+            "ComputerSystemCollection", 5)?;
+        state.serialize_field("Name", &self.name)?;
+        state.serialize_field("Members@odata.count", &self.members.len())?;
+        state.serialize_field("Members", &self.members)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
+        state.serialize_field("@odata.type", &self.odata_type)?;
         state.end()
     }
 }
 
 pub async fn get(request: Request<Body>) -> Result<Response<Body>, Infallible>
 {
-    let service = request.data::<ComputerSystem>().unwrap()
+    let service = request.data::<ComputerSystemCollection>().unwrap()
         .resolve(PathBuf::from(request.uri().path()));
     Ok(Response::new(Body::from(
-        serde_json::to_string::<ComputerSystem>(&service).unwrap())))
+        serde_json::to_string::<ComputerSystemCollection>(&service).unwrap())))
 }
 
 ///////////////////////////////////////////////////////////////////////////////

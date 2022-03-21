@@ -50,7 +50,7 @@ pub fn compose() -> Router<Body, Infallible> {
         .to_str().unwrap();
     let systems_router = Router::builder()
         .data(systems)
-        .get(systems_mountpoint, redfish::computer_system::collection_get)
+        .get(systems_mountpoint, redfish::computer_system_collection::get)
         .build()
         .unwrap();
 
