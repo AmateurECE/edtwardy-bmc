@@ -7,7 +7,7 @@
 //
 // CREATED:         02/26/2022
 //
-// LAST EDITED:     03/19/2022
+// LAST EDITED:     03/20/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -38,6 +38,7 @@ use routerify::prelude::*;
 use routerify::{Middleware, Router, RouterService, RequestInfo};
 
 mod redfish;
+mod service;
 
 // A middleware which logs an http request.
 async fn logger(req: Request<Body>) -> Result<Request<Body>, Infallible> {
@@ -60,15 +61,6 @@ async fn error_handler(err: routerify::RouteError, _: RequestInfo) ->
 // Create a `Router<Body, Infallible>` for response body type `hyper::Body`
 // and for handler error type `Infallible`.
 fn router() -> Router<Body, Infallible> {
-    let systems = redfish::ComputerSystemCollectionBuilder::default().build()
-        .unwrap();
-    let service = redfish::service_root::route(
-        redfish::ServiceRootBuilder::default()
-            .systems(systems)
-            .build()
-            .unwrap()
-    );
-
     // Create a router and specify the logger middleware and the handlers.
     // Here, "Middleware::pre" means we're adding a pre middleware which will
     // be executed before any route handlers.
@@ -76,7 +68,7 @@ fn router() -> Router<Body, Infallible> {
     // Specify the state data which will be available to every route
     // handlers, error handler and middlewares.
         .middleware(Middleware::pre(logger))
-        .scope("/", service)
+        .scope("/", service::compose())
         .err_handler_with_info(error_handler)
         .build()
         .unwrap()

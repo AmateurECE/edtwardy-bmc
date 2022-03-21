@@ -7,7 +7,7 @@
 //
 // CREATED:         03/16/2022
 //
-// LAST EDITED:     03/19/2022
+// LAST EDITED:     03/20/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -36,7 +36,6 @@ use std::path::{Path, PathBuf};
 
 use hyper::{Body, Request, Response};
 use routerify::prelude::*;
-use routerify::Router;
 use serde_json;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use derive_builder::Builder;
@@ -74,8 +73,15 @@ pub struct ServiceRoot<'a> {
     #[builder(default = "Cow::Owned(PathBuf::from(SERVICE_PATH))")]
     odata_id: Cow<'a, PathBuf>,
 
-    #[builder(default)]
-    systems: ComputerSystemCollection<'a>,
+    #[builder(default, setter(custom))]
+    systems: ServiceId<'a>,
+}
+
+impl ServiceRootBuilder<'_> {
+    pub fn systems(&mut self, systems: &ComputerSystemCollection) -> &Self {
+        self.systems = Some(systems.get_id().to_owned().into());
+        self
+    }
 }
 
 impl ServiceEndpoint for ServiceRoot<'_> {
@@ -98,10 +104,7 @@ impl Serialize for ServiceRoot<'_> {
         state.serialize_field("UUID", &self.uuid)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
         state.serialize_field("@odata.type", &self.odata_type)?;
-
-        let systems = ServiceId::from(self.odata_id.join(
-            self.systems.get_id()));
-        state.serialize_field("Systems", &systems)?;
+        state.serialize_field("Systems", &self.systems)?;
         state.end()
     }
 }
@@ -113,20 +116,6 @@ pub async fn get(request: Request<Body>) ->
         .resolve(PathBuf::from(request.uri().path()));
     Ok(Response::new(Body::from(
         serde_json::to_string::<ServiceRoot>(&service).unwrap())))
-}
-
-// Create a `Router<Body, Infallible>` for response body type `hyper::Body`
-// and for handler error type `Infallible`.
-pub fn route(service: ServiceRoot<'static>) -> Router<Body, Infallible> {
-    let mountpoint = "/".to_string() + service.get_id().to_owned().as_os_str()
-        .to_str().unwrap();
-    Router::builder()
-        // Specify the state data which will be available to every route
-        // handlers, error handler and middlewares.
-        .data(service)
-        .get(mountpoint, get)
-        .build()
-        .unwrap()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
