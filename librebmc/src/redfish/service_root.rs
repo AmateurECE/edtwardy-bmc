@@ -88,6 +88,7 @@ impl ServiceEndpoint for ServiceRoot<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
     fn resolve(&self, path: PathBuf) -> Self {
         let mut result = self.clone();
+        result.systems = path.join(self.systems.as_ref().to_owned()).into();
         result.odata_id = Cow::Owned(path);
         result
     }
