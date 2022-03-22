@@ -7,7 +7,7 @@
 //
 // CREATED:         03/20/2022
 //
-// LAST EDITED:     03/20/2022
+// LAST EDITED:     03/21/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -31,7 +31,6 @@
 ////
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::convert::{From, Infallible};
 use std::{default::Default, path::{Path, PathBuf}};
 
@@ -42,6 +41,7 @@ use serde::{Serialize, Serializer, ser::SerializeStruct};
 use derive_builder::Builder;
 
 use crate::redfish::{ServiceEndpoint, ServiceId};
+use crate::redfish::ComputerSystem;
 
 const ODATA_TYPE: &'static str =
     "#ComputerSystemCollection.ComputerSystemCollection";
@@ -61,13 +61,22 @@ pub struct ComputerSystemCollection<'a> {
     name: String,
 
     #[builder(default)]
-    members: HashMap<String, ServiceId<'a>>,
+    members: Vec<ServiceId<'a>>,
+}
+
+impl ComputerSystemCollection<'_> {
+    pub fn add_system(&mut self, system: &ComputerSystem) {
+        self.members.push(system.get_id().to_owned().into());
+    }
 }
 
 impl ServiceEndpoint for ComputerSystemCollection<'_> {
     fn get_id(&self) -> &Path { &self.odata_id }
     fn resolve(&self, path: PathBuf) -> Self {
         let mut result = self.clone();
+        result.members = self.members.iter()
+            .map(|s| ServiceId::from(path.join(s.as_ref())))
+            .collect::<Vec<ServiceId<'_>>>();
         result.odata_id = Cow::Owned(path);
         result
     }

@@ -7,7 +7,7 @@
 //
 // CREATED:         03/17/2022
 //
-// LAST EDITED:     03/20/2022
+// LAST EDITED:     03/21/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -38,8 +38,82 @@ use routerify::prelude::*;
 use serde_json;
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use derive_builder::Builder;
+use uuid::Uuid;
 
 use crate::redfish::ServiceEndpoint;
+
+const ODATA_TYPE: &'static str = "#ComputerSystem.v1_16_1.ComputerSystem";
+
+///////////////////////////////////////////////////////////////////////////////
+// Supporting Enums
+////
+
+#[derive(Clone, Serialize)]
+#[allow(dead_code)]
+pub enum SystemType {
+    Composed,
+    DPU,
+    OS,
+    Physical,
+    PhysicallyPartitioned,
+    Virtual,
+    VirtuallyPartitioned,
+}
+
+impl Default for SystemType {
+    fn default() -> Self { SystemType::Physical }
+}
+
+#[derive(Clone, Serialize)]
+#[allow(dead_code)]
+pub enum State {
+    Absent,
+    Deferring,
+    Disabled,
+    Enabled,
+    InTest,
+    Qualified,
+    Quiesced,
+    StandbyOffline,
+    StandbySpare,
+    Starting,
+    UnavailableOffline,
+    Updating,
+}
+
+#[derive(Clone, Serialize)]
+#[allow(dead_code)]
+pub enum Health {
+    Critical,
+    OK,
+    Warning,
+}
+
+#[derive(Clone)]
+pub struct Status {
+    state: State,
+    health: Health,
+    health_rollup: Health,
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Status { state: State::Enabled, health: Health::OK,
+                 health_rollup: Health::OK }
+    }
+}
+
+impl Serialize for Status {
+    fn serialize<S: Serializer>(&self, serializer: S) ->
+        Result<S::Ok, S::Error>
+    {
+        let mut state = serializer.serialize_struct("ComputerSystem", 8)?;
+        state.serialize_field("State", &self.state)?;
+        state.serialize_field("Health", &self.health)?;
+        state.serialize_field("HealthRollup", &self.health_rollup)?;
+        state.end()
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // ComputerSystem
@@ -48,8 +122,34 @@ use crate::redfish::ServiceEndpoint;
 #[derive(Builder, Clone, Default)]
 #[builder(setter(into))]
 pub struct ComputerSystem {
-    #[builder(default)]
+    #[builder(default, setter(custom))]
     odata_id: PathBuf,
+
+    #[builder(default = "ODATA_TYPE.to_string()", setter(skip))]
+    odata_type: String,
+
+    #[builder(default = "SystemType::Physical")]
+    system_type: SystemType,
+
+    #[builder(default)]
+    uuid: Uuid,
+
+    #[builder(default)]
+    status: Status,
+
+    #[builder(setter(custom))]
+    id: String,
+
+    name: String,
+    serial_number: String,
+}
+
+impl ComputerSystemBuilder {
+    pub fn id(&mut self, id: &str) -> &mut Self {
+        self.odata_id = Some(PathBuf::from(id));
+        self.id = Some(id.to_string());
+        self
+    }
 }
 
 impl ServiceEndpoint for ComputerSystem {
@@ -61,8 +161,17 @@ impl Serialize for ComputerSystem {
     fn serialize<S: Serializer>(&self, serializer: S) ->
         Result<S::Ok, S::Error>
     {
-        let mut state = serializer.serialize_struct("ComputerSystem", 1)?;
+        let mut state = serializer.serialize_struct("ComputerSystem", 8)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
+        state.serialize_field("@odata_type", &self.odata_type)?;
+        state.serialize_field("SystemType", &self.system_type)?;
+        state.serialize_field("UUID", &self.uuid)?;
+        state.serialize_field("Status", &self.status)?;
+        state.serialize_field("Id", &self.id)?;
+        state.serialize_field("Name", &self.name)?;
+        state.serialize_field("SerialNumber", &self.serial_number)?;
+        // hostname: String,
+        // actions: ?
         state.end()
     }
 }

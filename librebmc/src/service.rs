@@ -7,7 +7,7 @@
 //
 // CREATED:         03/20/2022
 //
-// LAST EDITED:     03/20/2022
+// LAST EDITED:     03/21/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -38,10 +38,25 @@ use crate::redfish::{self, ServiceEndpoint};
 
 pub fn compose() -> Router<Body, Infallible> {
     // Construct service objects
-    let systems = redfish::ComputerSystemCollectionBuilder::default().build()
+    let computer_id = "1";
+    let computer = redfish::ComputerSystemBuilder::default()
+        .id(computer_id)
+        .name("Ethan's Box")
+        .serial_number(computer_id)
+        .build()
         .unwrap();
+    let mut systems = redfish::ComputerSystemCollectionBuilder::default()
+        .build().unwrap();
+    systems.add_system(&computer);
     let service = redfish::ServiceRootBuilder::default()
         .systems(&systems)
+        .build()
+        .unwrap();
+
+    // Route requests for the ComputerSystem
+    let computer_router = Router::builder()
+        .data(computer)
+        .get("/".to_string() + computer_id, redfish::computer_system::get)
         .build()
         .unwrap();
 
@@ -50,6 +65,7 @@ pub fn compose() -> Router<Body, Infallible> {
         .to_str().unwrap();
     let systems_router = Router::builder()
         .data(systems)
+        .scope(&systems_mountpoint, computer_router)
         .get(systems_mountpoint, redfish::computer_system_collection::get)
         .build()
         .unwrap();
@@ -60,7 +76,7 @@ pub fn compose() -> Router<Body, Infallible> {
     Router::builder()
         .data(service)
         .get(&service_mountpoint, redfish::service_root::get)
-        .scope(&service_mountpoint, systems_router)
+        .scope(service_mountpoint, systems_router)
         .build()
         .unwrap()
 }
