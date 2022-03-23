@@ -34,7 +34,18 @@ use std::convert::Infallible;
 use hyper::{Body};
 use routerify::Router;
 
-use crate::redfish::{self, ServiceEndpoint};
+use crate::redfish::{self, ServiceEndpoint, computer_system};
+
+// pub struct LinuxResetHandler;
+// impl computer_system::ResetHandler for LinuxResetHandler {
+//     fn get_allowable_reset_types(&self) -> Vec<String> {
+//         vec!["Off".to_string()]
+//     }
+//     fn reset(&mut self, reset_type: String) -> Result<(), Infallible> {
+//         println!("ComputerSystem.Reset request of type {}", reset_type);
+//         Ok(())
+//     }
+// }
 
 pub fn compose() -> Router<Body, Infallible> {
     // Construct service objects
@@ -44,6 +55,7 @@ pub fn compose() -> Router<Body, Infallible> {
         .hostname("twardyece.com")
         .name("Ethan's Box")
         .serial_number(computer_id)
+        // .reset_handler(Box::new(LinuxResetHandler))
         .build()
         .unwrap();
     let mut systems = redfish::ComputerSystemCollectionBuilder::default()
@@ -57,7 +69,7 @@ pub fn compose() -> Router<Body, Infallible> {
     // Route requests for the ComputerSystem
     let computer_router = Router::builder()
         .data(computer)
-        .get("/".to_string() + computer_id, redfish::computer_system::get)
+        .get("/".to_string() + computer_id, computer_system::get)
         .build()
         .unwrap();
 

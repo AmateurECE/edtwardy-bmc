@@ -30,8 +30,10 @@
 // IN THE SOFTWARE.
 ////
 
+use std::collections::HashMap;
 use std::convert::{From, Infallible};
-use std::{default::Default, path::{Path, PathBuf}};
+use std::error;
+use std::{default::Default, path::{Path, PathBuf}, sync::Arc};
 
 use hyper::{Body, Request, Response};
 use routerify::prelude::*;
@@ -116,6 +118,55 @@ impl Serialize for Status {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// ComputerSystem.ActionHandlers
+////
+
+pub trait ResetHandler {
+    fn get_allowable_reset_types(&self) -> Vec<String>;
+    fn reset(&mut self, reset_type: String) -> Result<(), Infallible>;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// ComputerSystem.Actions
+////
+
+pub mod actions {
+    use std::path::PathBuf;
+    use serde::{Serialize, Serializer, ser::SerializeStruct};
+
+    pub struct Reset {
+        pub target: PathBuf,
+        pub allowable_values: Vec<String>,
+    }
+
+    impl Serialize for Reset {
+        fn serialize<S: Serializer>(&self, serializer: S) ->
+            Result<S::Ok, S::Error>
+        {
+            let mut state = serializer.serialize_struct("Reset", 2)?;
+            state.serialize_field("target", &self.target)?;
+            state.serialize_field("ResetType@Redfish.AllowableValues",
+                                  &self.allowable_values)?;
+            state.end()
+        }
+    }
+}
+
+struct Actions {
+    reset: actions::Reset,
+}
+
+impl Serialize for Actions {
+    fn serialize<S: Serializer>(&self, serializer: S) ->
+        Result<S::Ok, S::Error>
+    {
+        let mut state = serializer.serialize_struct("Actions", 1)?;
+        state.serialize_field("#ComputerSystem.Reset", &self.reset)?;
+        state.end()
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // ComputerSystem
 ////
 
@@ -143,6 +194,8 @@ pub struct ComputerSystem {
     name: String,
     serial_number: String,
     hostname: String,
+
+    // reset_handler: Arc<dyn ResetHandler>,
 }
 
 impl ComputerSystemBuilder {
@@ -162,7 +215,7 @@ impl Serialize for ComputerSystem {
     fn serialize<S: Serializer>(&self, serializer: S) ->
         Result<S::Ok, S::Error>
     {
-        let mut state = serializer.serialize_struct("ComputerSystem", 9)?;
+        let mut state = serializer.serialize_struct("ComputerSystem", 10)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
         state.serialize_field("@odata_type", &self.odata_type)?;
         state.serialize_field("SystemType", &self.system_type)?;
@@ -172,8 +225,17 @@ impl Serialize for ComputerSystem {
         state.serialize_field("Name", &self.name)?;
         state.serialize_field("SerialNumber", &self.serial_number)?;
         state.serialize_field("Hostname", &self.hostname)?;
-        // hostname: String,
-        // actions: ?
+
+        let actions = Actions {
+            reset: actions::Reset {
+                target: PathBuf::from(&self.odata_id)
+                    .join("Actions/ComputerSystem.Reset"),
+                allowable_values: Vec::new(),
+                // allowable_values: self.reset_handler
+                //     .get_allowable_reset_types(),
+            },
+        };
+        state.serialize_field("Actions", &actions);
         state.end()
     }
 }
