@@ -7,7 +7,7 @@
 //
 // CREATED:         03/17/2022
 //
-// LAST EDITED:     03/21/2022
+// LAST EDITED:     03/22/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -142,6 +142,7 @@ pub struct ComputerSystem {
 
     name: String,
     serial_number: String,
+    hostname: String,
 }
 
 impl ComputerSystemBuilder {
@@ -161,7 +162,7 @@ impl Serialize for ComputerSystem {
     fn serialize<S: Serializer>(&self, serializer: S) ->
         Result<S::Ok, S::Error>
     {
-        let mut state = serializer.serialize_struct("ComputerSystem", 8)?;
+        let mut state = serializer.serialize_struct("ComputerSystem", 9)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
         state.serialize_field("@odata_type", &self.odata_type)?;
         state.serialize_field("SystemType", &self.system_type)?;
@@ -170,6 +171,7 @@ impl Serialize for ComputerSystem {
         state.serialize_field("Id", &self.id)?;
         state.serialize_field("Name", &self.name)?;
         state.serialize_field("SerialNumber", &self.serial_number)?;
+        state.serialize_field("Hostname", &self.hostname)?;
         // hostname: String,
         // actions: ?
         state.end()

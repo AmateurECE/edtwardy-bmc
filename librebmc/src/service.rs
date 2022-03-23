@@ -7,7 +7,7 @@
 //
 // CREATED:         03/20/2022
 //
-// LAST EDITED:     03/21/2022
+// LAST EDITED:     03/22/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -41,6 +41,7 @@ pub fn compose() -> Router<Body, Infallible> {
     let computer_id = "1";
     let computer = redfish::ComputerSystemBuilder::default()
         .id(computer_id)
+        .hostname("twardyece.com")
         .name("Ethan's Box")
         .serial_number(computer_id)
         .build()
