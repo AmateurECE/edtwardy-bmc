@@ -1,12 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
-// NAME:            redfish.rs
+// NAME:            models.rs
 //
 // AUTHOR:          Ethan D. Twardy <ethan.twardy@gmail.com>
 //
-// DESCRIPTION:     Structs and Traits for serving Redfish endpoints with
-//                  Routerify.
+// DESCRIPTION:     Module encapsulating all data models in use.
 //
-// CREATED:         03/16/2022
+// CREATED:         03/28/2022
 //
 // LAST EDITED:     03/28/2022
 //
@@ -31,12 +30,45 @@
 // IN THE SOFTWARE.
 ////
 
-pub mod computer_system_collection;
-pub use computer_system_collection::ComputerSystemCollection;
-pub use computer_system_collection::ComputerSystemCollectionBuilder;
+use std::borrow::Cow;
+use std::{convert::From, default::Default, path::{Path, PathBuf}};
+use serde::{Serializer, Serialize, ser::SerializeStruct};
 
-pub mod computer_system;
-pub use computer_system::ComputerSystem;
-pub use computer_system::ComputerSystemBuilder;
+mod service_root;
+
+///////////////////////////////////////////////////////////////////////////////
+// ServiceId
+////
+
+#[derive(Clone, Default)]
+pub struct ServiceId<'a> {
+    odata_id: Cow<'a, PathBuf>,
+}
+
+impl<'a> From<PathBuf> for ServiceId<'a> {
+    fn from(value: PathBuf) -> ServiceId<'a> {
+        ServiceId { odata_id: Cow::Owned(value) }
+    }
+}
+
+impl AsRef<Path> for ServiceId<'_> {
+    fn as_ref(&self) -> &Path { &self.odata_id }
+}
+
+impl Serialize for ServiceId<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) ->
+        Result<S::Ok, S::Error>
+    {
+        let mut state = serializer.serialize_struct("ServiceId", 1)?;
+        state.serialize_field("@odata.id", &self.odata_id)?;
+        state.end()
+    }
+}
+
+// Trait can be used to get exact routes to service endpoints.
+pub trait ServiceEndpoint {
+    fn get_id(&self) -> &Path;
+    fn resolve(&self, path: PathBuf) -> Self;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
