@@ -34,21 +34,15 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use axum::{routing::get, Router};
-use odata::Resource;
+use odata;
 use serde_json;
+use serde;
 
 mod models;
-use crate::models::{
-    ServiceRoot, ServiceRootBuilder,
-    ComputerSystemCollection, ComputerSystemCollectionBuilder
-};
+use crate::models::{ServiceRootBuilder, ComputerSystemCollectionBuilder};
 
-async fn get_computer_system_collection(systems: Arc<Resource<ComputerSystemCollection>>) ->
-    String
-{ serde_json::to_string(&*systems).unwrap() }
-
-async fn get_service_root(service: Arc<Resource<ServiceRoot>>) -> String {
-    serde_json::to_string(&*service).unwrap()
+async fn get_resource<S: serde::Serialize>(resource: Arc<S>) -> String {
+    serde_json::to_string(&*resource).unwrap()
 }
 
 #[tokio::main]
@@ -63,11 +57,11 @@ async fn main() {
     let app = Router::new()
         .route("/redfish/v1", get({
             let service = Arc::clone(&service);
-            move || get_service_root(service)
+            move || get_resource(service)
         }))
         .route("/redfish/v1/Systems", get({
             let systems = Arc::clone(&systems);
-            move || get_computer_system_collection(systems)
+            move || get_resource(systems)
         }));
     axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
         .serve(app.into_make_service())
