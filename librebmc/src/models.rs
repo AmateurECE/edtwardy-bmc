@@ -7,7 +7,7 @@
 //
 // CREATED:         03/28/2022
 //
-// LAST EDITED:     03/29/2022
+// LAST EDITED:     04/03/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,47 +30,8 @@
 // IN THE SOFTWARE.
 ////
 
-use std::borrow::Cow;
-use std::{convert::From, default::Default, path::{Path, PathBuf}};
-use serde::{Serializer, Serialize, ser::SerializeStruct};
-
 mod service_root;
 pub use service_root::ServiceRoot;
 pub use service_root::ServiceRootBuilder;
-
-///////////////////////////////////////////////////////////////////////////////
-// ServiceId
-////
-
-#[derive(Clone, Default)]
-pub struct ServiceId<'a> {
-    odata_id: Cow<'a, PathBuf>,
-}
-
-impl<'a> From<PathBuf> for ServiceId<'a> {
-    fn from(value: PathBuf) -> ServiceId<'a> {
-        ServiceId { odata_id: Cow::Owned(value) }
-    }
-}
-
-impl AsRef<Path> for ServiceId<'_> {
-    fn as_ref(&self) -> &Path { &self.odata_id }
-}
-
-impl Serialize for ServiceId<'_> {
-    fn serialize<S: Serializer>(&self, serializer: S) ->
-        Result<S::Ok, S::Error>
-    {
-        let mut state = serializer.serialize_struct("ServiceId", 1)?;
-        state.serialize_field("@odata.id", &self.odata_id)?;
-        state.end()
-    }
-}
-
-// Trait can be used to get exact routes to service endpoints.
-pub trait ServiceEndpoint {
-    fn get_id(&self) -> &Path;
-    fn resolve(&self, path: PathBuf) -> Self;
-}
 
 ///////////////////////////////////////////////////////////////////////////////
