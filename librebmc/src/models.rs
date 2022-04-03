@@ -34,4 +34,8 @@ mod service_root;
 pub use service_root::ServiceRoot;
 pub use service_root::ServiceRootBuilder;
 
+mod computer_system_collection;
+pub use computer_system_collection::ComputerSystemCollection;
+pub use  computer_system_collection::ComputerSystemCollectionBuilder;
+
 ///////////////////////////////////////////////////////////////////////////////
