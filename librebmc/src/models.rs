@@ -7,7 +7,7 @@
 //
 // CREATED:         03/28/2022
 //
-// LAST EDITED:     03/28/2022
+// LAST EDITED:     03/29/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -35,6 +35,8 @@ use std::{convert::From, default::Default, path::{Path, PathBuf}};
 use serde::{Serializer, Serialize, ser::SerializeStruct};
 
 mod service_root;
+pub use service_root::ServiceRoot;
+pub use service_root::ServiceRootBuilder;
 
 ///////////////////////////////////////////////////////////////////////////////
 // ServiceId

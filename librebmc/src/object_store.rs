@@ -1,13 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////
-// NAME:            main.rs
+// NAME:            object_store.rs
 //
 // AUTHOR:          Ethan D. Twardy <ethan.twardy@gmail.com>
 //
-// DESCRIPTION:     Entrypoint for the application.
+// DESCRIPTION:     Repository object for accessing model information, in the
+//                  absence of a database connection.
 //
-// CREATED:         02/26/2022
+// CREATED:         03/28/2022
 //
-// LAST EDITED:     04/02/2022
+// LAST EDITED:     03/29/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,37 +31,24 @@
 // IN THE SOFTWARE.
 ////
 
-use std::sync::Arc;
-use std::path::PathBuf;
-
-use axum::{
-    routing::get,
-    response::Json,
-    Router,
-};
-
-mod models;
+use std::default::Default;
 
 use crate::models::ServiceRoot;
-use crate::models::ServiceRootBuilder;
-use crate::models::ServiceEndpoint;
 
-async fn get_service_root(service: Arc<ServiceRoot<'static>>) ->
-    Json<ServiceRoot<'static>>
-{ Json(service.resolve(PathBuf::from("/redfish/v1"))) }
+#[derive(Default)]
+pub struct ObjectStore<'a> {
+    service_root: Option<ServiceRoot<'a>>,
+}
 
-#[tokio::main]
-async fn main() {
-    let service = Arc::new(ServiceRootBuilder::default().build().unwrap());
-    let app = Router::new()
-        .route("/", get({
-            let service = Arc::clone(&service);
-            move || get_service_root(service)
-        }));
-    axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+impl ObjectStore<'_> {
+    pub fn get_service_root(&self) -> Option<&ServiceRoot> {
+        self.service_root.as_ref()
+    }
+
+    pub fn service_root(&mut self, service: ServiceRoot<'static>) -> Self {
+        self.service_root = Some(service);
+        *self
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
