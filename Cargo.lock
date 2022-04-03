@@ -299,6 +299,7 @@ dependencies = [
  "axum",
  "derive_builder",
  "hyper",
+ "odata",
  "serde",
  "serde_json",
  "tokio",

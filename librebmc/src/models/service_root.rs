@@ -7,7 +7,7 @@
 //
 // CREATED:         03/28/2022
 //
-// LAST EDITED:     03/28/2022
+// LAST EDITED:     04/02/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,30 +30,22 @@
 // IN THE SOFTWARE.
 ////
 
-use std::borrow::Cow;
 use std::default::Default;
-use std::path::{Path, PathBuf};
 
-use serde::{Serialize, Serializer, ser::SerializeStruct};
+use odata;
 use derive_builder::Builder;
 use uuid::Uuid;
 
 // use crate::redfish::ComputerSystemCollection;
 // use crate::models::ComputerSystemCollection;
-use crate::models::ServiceEndpoint;
 
-const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
-const SERVICE_PATH: &'static str = "redfish/v1";
 const SCHEMA_VERSION: &'static str = "1.6.0";
 const DEFAULT_NAME: &'static str = "Root Service";
 const DEFAULT_ID: &'static str = "RootService";
 
 #[derive(Builder, Clone, Default)]
 #[builder(setter(into))]
-pub struct ServiceRoot<'a> {
-    #[builder(default = "ODATA_TYPE.to_string()")]
-    odata_type: String,
-
+pub struct ServiceRoot {
     #[builder(default = "DEFAULT_ID.to_string()")]
     id: String,
 
@@ -66,11 +58,12 @@ pub struct ServiceRoot<'a> {
     #[builder(default)]
     uuid: Uuid,
 
-    #[builder(default = "Cow::Owned(PathBuf::from(SERVICE_PATH))")]
-    odata_id: Cow<'a, PathBuf>,
-
     // #[builder(default, setter(custom))]
     // systems: ServiceId<'a>,
+}
+
+impl odata::ResourceMetadata for ServiceRoot {
+    const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
 }
 
 // impl ServiceRootBuilder<'_> {
@@ -80,29 +73,16 @@ pub struct ServiceRoot<'a> {
 //     }
 // }
 
-impl ServiceEndpoint for ServiceRoot<'_> {
-    fn get_id(&self) -> &Path { &self.odata_id }
-    fn resolve(&self, path: PathBuf) -> Self {
-        let mut result = self.clone();
-        // result.systems = path.join(self.systems.as_ref().to_owned()).into();
-        result.odata_id = Cow::Owned(path);
-        result
-    }
-}
-
-impl Serialize for ServiceRoot<'_> {
-    fn serialize<S: Serializer>(&self, serializer: S) ->
-        Result<S::Ok, S::Error>
+impl odata::Serialize for ServiceRoot {
+    const CARDINALITY: usize = 4;
+    fn serialize<S: serde::ser::SerializeStruct>(&self, serializer: &mut S) ->
+        Result<(), S::Error>
     {
-        let mut state = serializer.serialize_struct("ServiceRoot", 6)?;
-        state.serialize_field("Id", &self.id)?;
-        state.serialize_field("Name", &self.name)?;
-        state.serialize_field("RedfishVersion", &self.redfish_version)?;
-        state.serialize_field("UUID", &self.uuid)?;
-        state.serialize_field("@odata.id", &self.odata_id)?;
-        state.serialize_field("@odata.type", &self.odata_type)?;
+        serializer.serialize_field("Id", &self.id)?;
+        serializer.serialize_field("Name", &self.name)?;
+        serializer.serialize_field("RedfishVersion", &self.redfish_version)?;
+        serializer.serialize_field("UUID", &self.uuid)
         // state.serialize_field("Systems", &self.systems)?;
-        state.end()
     }
 }
 

@@ -33,25 +33,23 @@
 use std::sync::Arc;
 use std::path::PathBuf;
 
-use axum::{
-    routing::get,
-    response::Json,
-    Router,
-};
+use axum::{routing::get, Router};
+use odata::Resource;
+use serde_json;
 
 mod models;
-
 use crate::models::ServiceRoot;
 use crate::models::ServiceRootBuilder;
-use crate::models::ServiceEndpoint;
 
-async fn get_service_root(service: Arc<ServiceRoot<'static>>) ->
-    Json<ServiceRoot<'static>>
-{ Json(service.resolve(PathBuf::from("/redfish/v1"))) }
+async fn get_service_root(service: Arc<Resource<ServiceRoot>>) -> String {
+    serde_json::to_string(&*service).unwrap()
+}
 
 #[tokio::main]
 async fn main() {
-    let service = Arc::new(ServiceRootBuilder::default().build().unwrap());
+    let service = Arc::new(odata::Resource::new(
+        PathBuf::from("/redfish/v1"),
+        ServiceRootBuilder::default().build().unwrap()));
     let app = Router::new()
         .route("/", get({
             let service = Arc::clone(&service);
