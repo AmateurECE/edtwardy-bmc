@@ -7,7 +7,7 @@
 //
 // CREATED:         03/28/2022
 //
-// LAST EDITED:     04/02/2022
+// LAST EDITED:     04/03/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -36,8 +36,7 @@ use odata;
 use derive_builder::Builder;
 use uuid::Uuid;
 
-// use crate::redfish::ComputerSystemCollection;
-// use crate::models::ComputerSystemCollection;
+use crate::models::ComputerSystemCollection;
 
 const SCHEMA_VERSION: &'static str = "1.6.0";
 const DEFAULT_NAME: &'static str = "Root Service";
@@ -58,20 +57,22 @@ pub struct ServiceRoot {
     #[builder(default)]
     uuid: Uuid,
 
-    // #[builder(default, setter(custom))]
-    // systems: ServiceId<'a>,
+    #[builder(default, setter(custom))]
+    systems: Option<odata::Link>,
 }
 
 impl odata::ResourceMetadata for ServiceRoot {
     const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
 }
 
-// impl ServiceRootBuilder<'_> {
-//     pub fn systems(&mut self, systems: &ComputerSystemCollection) -> &Self {
-//         self.systems = Some(systems.get_id().to_owned().into());
-//         self
-//     }
-// }
+impl ServiceRootBuilder {
+    pub fn systems(
+        &mut self, systems: &odata::Resource<ComputerSystemCollection>
+    ) -> &Self {
+        self.systems = Some(Some(systems.get_id()));
+        self
+    }
+}
 
 impl odata::Serialize for ServiceRoot {
     const CARDINALITY: usize = 4;
@@ -81,8 +82,8 @@ impl odata::Serialize for ServiceRoot {
         serializer.serialize_field("Id", &self.id)?;
         serializer.serialize_field("Name", &self.name)?;
         serializer.serialize_field("RedfishVersion", &self.redfish_version)?;
-        serializer.serialize_field("UUID", &self.uuid)
-        // state.serialize_field("Systems", &self.systems)?;
+        serializer.serialize_field("UUID", &self.uuid)?;
+        serializer.serialize_field("Systems", &self.systems)
     }
 }
 

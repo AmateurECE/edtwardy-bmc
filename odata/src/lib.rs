@@ -31,7 +31,8 @@
 // IN THE SOFTWARE.
 ////
 
-use std::path::PathBuf;
+use std::convert::From;
+use std::path::{Path, PathBuf};
 use serde::{self, ser::SerializeStruct};
 
 // Must be implemented by traits that can be wrapped with Resource<>
@@ -40,6 +41,30 @@ pub trait Serialize {
     const CARDINALITY: usize;
     fn serialize<S: serde::ser::SerializeStruct>(&self, serializer: &mut S) ->
         Result<(), S::Error>;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Link
+////
+
+#[derive(Clone)]
+pub struct Link(PathBuf);
+impl AsRef<Path> for Link {
+    fn as_ref(&self) -> &Path { &self.0 }
+}
+
+impl serde::Serialize for Link {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) ->
+        Result<S::Ok, S::Error>
+    {
+        let mut state = serializer.serialize_struct("Link", 1)?;
+        state.serialize_field("@odata.id", &self.0)?;
+        state.end()
+    }
+}
+
+impl From<PathBuf> for Link {
+    fn from(value: PathBuf) -> Self { Link(value) }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -56,6 +81,10 @@ pub struct Resource<T: Serialize + ResourceMetadata> {
 impl<T: Serialize + ResourceMetadata> Resource<T> {
     pub fn new(odata_id: PathBuf, resource: T) -> Self {
         Resource { odata_id, resource, odata_type: T::ODATA_TYPE }
+    }
+
+    pub fn get_id(&self) -> Link {
+        self.odata_id.to_owned().into()
     }
 }
 
