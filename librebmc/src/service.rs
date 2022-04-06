@@ -7,7 +7,7 @@
 //
 // CREATED:         03/20/2022
 //
-// LAST EDITED:     03/22/2022
+// LAST EDITED:     04/06/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,68 +30,76 @@
 // IN THE SOFTWARE.
 ////
 
-use std::convert::Infallible;
-use hyper::{Body};
-use routerify::Router;
+use core::future::{self, Ready};
+use core::clone::Clone;
+use core::convert::Infallible;
+use core::task::{Context, Poll};
+use std::sync::Arc;
 
-use crate::redfish::{self, ServiceEndpoint, computer_system};
+use hyper::{Body, Request, Response, service::Service};
+use odata::{Resource, ResourceMetadata, Serialize};
+use serde_json;
 
-// pub struct LinuxResetHandler;
-// impl computer_system::ResetHandler for LinuxResetHandler {
-//     fn get_allowable_reset_types(&self) -> Vec<String> {
-//         vec!["Off".to_string()]
-//     }
-//     fn reset(&mut self, reset_type: String) -> Result<(), Infallible> {
-//         println!("ComputerSystem.Reset request of type {}", reset_type);
-//         Ok(())
-//     }
-// }
+///////////////////////////////////////////////////////////////////////////////
+// ResourceService
+////
 
-pub fn compose() -> Router<Body, Infallible> {
-    // Construct service objects
-    let computer_id = "1";
-    let computer = redfish::ComputerSystemBuilder::default()
-        .id(computer_id)
-        .hostname("twardyece.com")
-        .name("Ethan's Box")
-        .serial_number(computer_id)
-        // .reset_handler(Box::new(LinuxResetHandler))
-        .build()
-        .unwrap();
-    let mut systems = redfish::ComputerSystemCollectionBuilder::default()
-        .build().unwrap();
-    systems.add_system(&computer);
-    let service = redfish::ServiceRootBuilder::default()
-        .systems(&systems)
-        .build()
-        .unwrap();
+#[derive(Clone)]
+pub struct ResourceService<T>(Arc<Resource<T>>)
+where T: Serialize + ResourceMetadata + Clone;
 
-    // Route requests for the ComputerSystem
-    let computer_router = Router::builder()
-        .data(computer)
-        .get("/".to_string() + computer_id, computer_system::get)
-        .build()
-        .unwrap();
+impl<T> Service<Request<Body>> for ResourceService<T>
+where T: Serialize + ResourceMetadata + Clone {
+    type Response = Response<Body>;
+    type Error = Infallible;
+    type Future = Ready<Result<Self::Response, Self::Error>>;
+    fn poll_ready(&mut self, _context: &mut Context<'_>) ->
+        Poll<Result<(), Self::Error>>
+    { Ok(()).into() }
 
-    // Route requests for the ComputerSystemCollection
-    let systems_mountpoint = "/".to_string() + systems.get_id().as_os_str()
-        .to_str().unwrap();
-    let systems_router = Router::builder()
-        .data(systems)
-        .scope(&systems_mountpoint, computer_router)
-        .get(systems_mountpoint, redfish::computer_system_collection::get)
-        .build()
-        .unwrap();
+    fn call(&mut self, _request: Request<Body>) -> Self::Future {
+        future::ready(
+            Ok(Response::builder()
+               .status(200)
+               .body(Body::from(serde_json::to_string(&*self.0).unwrap()))
+               .unwrap())
+        )
+    }
+}
 
-    // Route requests for the ServiceRoot
-    let service_mountpoint = "/".to_string() + service.get_id().as_os_str()
-        .to_str().unwrap();
-    Router::builder()
-        .data(service)
-        .get(&service_mountpoint, redfish::service_root::get)
-        .scope(service_mountpoint, systems_router)
-        .build()
-        .unwrap()
+impl<T> From<Resource<T>> for ResourceService<T>
+where T: Serialize + ResourceMetadata + Clone {
+    fn from(resource: Resource<T>) -> Self {
+        ResourceService(Arc::new(resource))
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// ServiceFactory
+////
+
+pub struct ServiceFactory<T>(ResourceService<T>)
+where T: Serialize + ResourceMetadata + Clone;
+
+impl<R, T> Service<R> for ServiceFactory<T>
+where T: Serialize + ResourceMetadata + Clone {
+    type Response = ResourceService<T>;
+    type Error = Infallible;
+    type Future = Ready<Result<Self::Response, Self::Error>>;
+    fn poll_ready(&mut self, _context: &mut Context<'_>) ->
+        Poll<Result<(), Self::Error>>
+    { Ok(()).into() }
+
+    fn call(&mut self, _: R) -> Self::Future {
+        future::ready(Ok(self.0.clone()))
+    }
+}
+
+impl<T> From<ResourceService<T>> for ServiceFactory<T>
+where T: Serialize + ResourceMetadata + Clone {
+    fn from(service: ResourceService<T>) -> Self {
+        ServiceFactory(service)
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
