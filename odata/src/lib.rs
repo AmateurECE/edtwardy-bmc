@@ -8,7 +8,7 @@
 //
 // CREATED:         04/01/2022
 //
-// LAST EDITED:     04/03/2022
+// LAST EDITED:     04/05/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -31,7 +31,6 @@
 // IN THE SOFTWARE.
 ////
 
-use std::convert::From;
 use std::path::{Path, PathBuf};
 use serde::{self, ser::SerializeStruct};
 

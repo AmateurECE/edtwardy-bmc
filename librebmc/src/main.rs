@@ -7,7 +7,7 @@
 //
 // CREATED:         02/26/2022
 //
-// LAST EDITED:     04/03/2022
+// LAST EDITED:     04/05/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,41 +30,94 @@
 // IN THE SOFTWARE.
 ////
 
-use std::sync::Arc;
+use core::future::{self, Ready};
+use core::clone::Clone;
+use core::convert::Infallible;
+use core::task::{Context, Poll};
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use axum::{routing::get, Router};
-use odata;
+use hyper::{Body, Request, Response, service::Service};
+use odata::{Resource, ResourceMetadata, Serialize};
 use serde_json;
-use serde;
 
 mod models;
 use crate::models::{ServiceRootBuilder, ComputerSystemCollectionBuilder};
 
-async fn get_resource<S: serde::Serialize>(resource: Arc<S>) -> String {
-    serde_json::to_string(&*resource).unwrap()
+///////////////////////////////////////////////////////////////////////////////
+// ResourceService
+////
+
+#[derive(Clone)]
+pub struct ResourceService<T>(Arc<Resource<T>>)
+where T: Serialize + ResourceMetadata + Clone;
+
+impl<T> Service<Request<Body>> for ResourceService<T>
+where T: Serialize + ResourceMetadata + Clone {
+    type Response = Response<Body>;
+    type Error = Infallible;
+    type Future = Ready<Result<Self::Response, Self::Error>>;
+    fn poll_ready(&mut self, _context: &mut Context<'_>) ->
+        Poll<Result<(), Self::Error>>
+    { Ok(()).into() }
+
+    fn call(&mut self, _request: Request<Body>) -> Self::Future {
+        future::ready(
+            Ok(Response::builder()
+               .status(200)
+               .body(Body::from(serde_json::to_string(&*self.0).unwrap()))
+               .unwrap())
+        )
+    }
 }
+
+impl<T> From<Resource<T>> for ResourceService<T>
+where T: Serialize + ResourceMetadata + Clone {
+    fn from(resource: Resource<T>) -> Self {
+        ResourceService(Arc::new(resource))
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// ServiceFactory
+////
+
+pub struct ServiceFactory<T>(ResourceService<T>)
+where T: Serialize + ResourceMetadata + Clone;
+
+impl<R, T> Service<R> for ServiceFactory<T>
+where T: Serialize + ResourceMetadata + Clone {
+    type Response = ResourceService<T>;
+    type Error = Infallible;
+    type Future = Ready<Result<Self::Response, Self::Error>>;
+    fn poll_ready(&mut self, _context: &mut Context<'_>) ->
+        Poll<Result<(), Self::Error>>
+    { Ok(()).into() }
+
+    fn call(&mut self, _: R) -> Self::Future {
+        future::ready(Ok(self.0.clone()))
+    }
+}
+
+impl<T> From<ResourceService<T>> for ServiceFactory<T>
+where T: Serialize + ResourceMetadata + Clone {
+    fn from(service: ResourceService<T>) -> Self {
+        ServiceFactory(service)
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Main
+////
 
 #[tokio::main]
 async fn main() {
-    let systems = Arc::new(odata::Resource::new(
-        PathBuf::from("/redfish/v1/Systems"),
-        ComputerSystemCollectionBuilder::default().build().unwrap()));
-    let service = Arc::new(odata::Resource::new(
+    let service = ResourceService::from(Resource::new(
         PathBuf::from("/redfish/v1"),
-        ServiceRootBuilder::default().systems(&*systems).build().unwrap()));
+        ServiceRootBuilder::default().build().unwrap()));
 
-    let app = Router::new()
-        .route("/redfish/v1", get({
-            let service = Arc::clone(&service);
-            move || get_resource(service)
-        }))
-        .route("/redfish/v1/Systems", get({
-            let systems = Arc::clone(&systems);
-            move || get_resource(systems)
-        }));
-    axum::Server::bind(&"127.0.0.1:3000".parse().unwrap())
-        .serve(app.into_make_service())
+    hyper::Server::bind(&"127.0.0.1:3000".parse().unwrap())
+        .serve(ServiceFactory::from(service))
         .await
         .unwrap();
 }
