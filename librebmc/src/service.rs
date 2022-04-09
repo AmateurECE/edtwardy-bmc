@@ -7,7 +7,7 @@
 //
 // CREATED:         03/20/2022
 //
-// LAST EDITED:     04/06/2022
+// LAST EDITED:     04/08/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -33,12 +33,35 @@
 use core::future::{self, Ready};
 use core::clone::Clone;
 use core::convert::Infallible;
+use core::pin::Pin;
 use core::task::{Context, Poll};
 use std::sync::Arc;
 
 use hyper::{Body, Request, Response, service::Service};
 use odata::{Resource, ResourceMetadata, Serialize};
 use serde_json;
+
+///////////////////////////////////////////////////////////////////////////////
+// RouteFuture
+////
+
+pub struct RouteFuture<T>(Arc<Resource<T>>)
+where T: Serialize + ResourceMetadata + Clone;
+
+impl<T> core::future::Future for RouteFuture<T>
+where T: Serialize + ResourceMetadata + Clone {
+    type Output = Result<Response<Body>, Infallible>;
+    fn poll(self: Pin<&mut Self>, _context: &mut Context<'_>) ->
+        Poll<Self::Output>
+    {
+        Poll::Ready(Ok(
+            Response::builder()
+                .status(200)
+                .body(Body::from(serde_json::to_string(&*self.0).unwrap()))
+                .unwrap()
+        ))
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // ResourceService
@@ -52,18 +75,13 @@ impl<T> Service<Request<Body>> for ResourceService<T>
 where T: Serialize + ResourceMetadata + Clone {
     type Response = Response<Body>;
     type Error = Infallible;
-    type Future = Ready<Result<Self::Response, Self::Error>>;
+    type Future = RouteFuture<T>;
     fn poll_ready(&mut self, _context: &mut Context<'_>) ->
         Poll<Result<(), Self::Error>>
     { Ok(()).into() }
 
     fn call(&mut self, _request: Request<Body>) -> Self::Future {
-        future::ready(
-            Ok(Response::builder()
-               .status(200)
-               .body(Body::from(serde_json::to_string(&*self.0).unwrap()))
-               .unwrap())
-        )
+        RouteFuture(self.0.clone())
     }
 }
 
