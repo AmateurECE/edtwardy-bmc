@@ -32,6 +32,7 @@
 
 use std::convert::Infallible;
 use std::default::Default;
+use std::path::Path;
 
 use odata;
 use derive_builder::Builder;
@@ -92,7 +93,7 @@ impl odata::Serialize for ServiceRoot {
 
 impl Dispatch for ServiceRoot {
     type Error = Infallible;
-    fn dispatch(&self, components: Vec<&str>, request: &Request<Body>) ->
+    fn dispatch(&self, path: &Path, request: &Request<Body>) ->
         Result<Option<Response<Body>>, Self::Error>
     { unimplemented!() }
 }

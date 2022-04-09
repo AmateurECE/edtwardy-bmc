@@ -33,8 +33,10 @@
 use core::future::{self, Ready};
 use core::clone::Clone;
 use core::convert::Infallible;
+use core::fmt::Debug;
 use core::pin::Pin;
 use core::task::{Context, Poll};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use hyper::{Body, Request, Response, service::Service};
@@ -57,8 +59,8 @@ impl Into<Response<Body>> for NotFound {
 ////
 
 pub trait Dispatch {
-    type Error;
-    fn dispatch(&self, components: Vec<&str>, request: &Request<Body>) ->
+    type Error: Debug;
+    fn dispatch(&self, path: &Path, request: &Request<Body>) ->
         Result<Option<Response<Body>>, Self::Error>;
 }
 
@@ -71,16 +73,24 @@ where T: Serialize + ResourceMetadata + Dispatch;
 
 impl<T> Dispatch for ODataResource<T>
 where T: Serialize + ResourceMetadata + Dispatch {
-    type Error = Infallible;
-    fn dispatch(&self, components: Vec<&str>, request: &Request<Body>) ->
+    type Error = <T as Dispatch>::Error;
+    fn dispatch(&self, path: &Path, request: &Request<Body>) ->
         Result<Option<Response<Body>>, Self::Error>
     {
-        Ok(Some(
-            Response::builder()
-                .status(200)
-                .body(Body::from(serde_json::to_string(&self.0).unwrap()))
-                .unwrap()
-        ))
+        let this_url = self.0.get_id();
+        if this_url.as_ref() == path {
+            Ok(Some(
+                Response::builder()
+                    .status(200)
+                    .body(Body::from(serde_json::to_string(&self.0).unwrap()))
+                    .unwrap()
+            ))
+        } else if path.starts_with(this_url.as_ref()) {
+            self.0.get().dispatch(
+                path.strip_prefix(this_url).unwrap(), request)
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -114,7 +124,8 @@ where T: Serialize + ResourceMetadata + Clone + Dispatch {
     fn poll(self: Pin<&mut Self>, _context: &mut Context<'_>) ->
         Poll<Self::Output>
     {
-        let result = (&*self.resource).dispatch(Vec::new(), &self.request);
+        let path = PathBuf::from(self.request.uri().path());
+        let result = (&*self.resource).dispatch(&path, &self.request);
         let response: Response<Body> = match result.unwrap() {
             Some(response) => response,
             None => NotFound.into(),
