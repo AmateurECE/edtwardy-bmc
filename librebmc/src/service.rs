@@ -39,18 +39,37 @@ use core::task::{Context, Poll};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, service::Service};
+use hyper::{Body, Method, Request, Response, service::Service};
 use odata::{Resource, ResourceMetadata, Serialize};
 use serde_json;
 
 ///////////////////////////////////////////////////////////////////////////////
-// NotFound
+// Convenience Responses
 ////
 
 pub struct NotFound;
 impl Into<Response<Body>> for NotFound {
     fn into(self) -> Response<Body> {
         Response::builder().status(404).body("".into()).unwrap()
+    }
+}
+
+pub struct MethodNotAllowed(Vec<Method>);
+impl MethodNotAllowed {
+    pub fn new(allowed: Vec<Method>) -> Self {
+        MethodNotAllowed(allowed)
+    }
+}
+
+impl Into<Response<Body>> for MethodNotAllowed {
+    fn into(self) -> Response<Body> {
+        let allowed = self.0.iter().map(|method| method.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ");
+        Response::builder()
+            .status(405)
+            .header("Allow", &allowed)
+            .body("".into()).unwrap()
     }
 }
 
@@ -79,16 +98,24 @@ where T: Serialize + ResourceMetadata + Dispatch {
     {
         let this_url = self.0.get_id();
         if this_url.as_ref() == path {
-            Ok(Some(
-                Response::builder()
-                    .status(200)
-                    .body(Body::from(serde_json::to_string(&self.0).unwrap()))
-                    .unwrap()
-            ))
-        } else if path.starts_with(this_url.as_ref()) {
+            match request.method() {
+                &Method::GET => Ok(Some(
+                    Response::builder()
+                        .status(200)
+                        .body(serde_json::to_string(&self.0).unwrap().into())
+                        .unwrap()
+                )),
+
+                _ => Ok(Some(MethodNotAllowed::new(vec![Method::GET]).into())),
+            }
+        }
+
+        else if path.starts_with(this_url.as_ref()) {
             self.0.get().dispatch(
                 path.strip_prefix(this_url).unwrap(), request)
-        } else {
+        }
+
+        else {
             Ok(None)
         }
     }
