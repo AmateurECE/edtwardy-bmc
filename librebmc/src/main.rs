@@ -7,7 +7,7 @@
 //
 // CREATED:         02/26/2022
 //
-// LAST EDITED:     04/06/2022
+// LAST EDITED:     04/09/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -38,13 +38,14 @@ mod models;
 mod service;
 
 use crate::models::{ServiceRootBuilder, ComputerSystemCollectionBuilder};
-use crate::service::{ResourceService, ServiceFactory};
+use crate::service::{ODataResource, ResourceService, ServiceFactory};
 
 #[tokio::main]
 async fn main() {
-    let service = ResourceService::from(Resource::new(
+    let service: ODataResource<_> = Resource::new(
         PathBuf::from("/redfish/v1"),
-        ServiceRootBuilder::default().build().unwrap()));
+        ServiceRootBuilder::default().build().unwrap()).into();
+    let service: ResourceService<_> = service.into();
 
     hyper::Server::bind(&"127.0.0.1:3000".parse().unwrap())
         .serve(ServiceFactory::from(service))

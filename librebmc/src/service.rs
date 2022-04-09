@@ -7,7 +7,7 @@
 //
 // CREATED:         03/20/2022
 //
-// LAST EDITED:     04/08/2022
+// LAST EDITED:     04/09/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -42,24 +42,84 @@ use odata::{Resource, ResourceMetadata, Serialize};
 use serde_json;
 
 ///////////////////////////////////////////////////////////////////////////////
+// NotFound
+////
+
+pub struct NotFound;
+impl Into<Response<Body>> for NotFound {
+    fn into(self) -> Response<Body> {
+        Response::builder().status(404).body("".into()).unwrap()
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Dispatch
+////
+
+pub trait Dispatch {
+    type Error;
+    fn dispatch(&self, components: Vec<&str>, request: &Request<Body>) ->
+        Result<Option<Response<Body>>, Self::Error>;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// ODataResource
+////
+
+pub struct ODataResource<T>(Resource<T>)
+where T: Serialize + ResourceMetadata + Dispatch;
+
+impl<T> Dispatch for ODataResource<T>
+where T: Serialize + ResourceMetadata + Dispatch {
+    type Error = Infallible;
+    fn dispatch(&self, components: Vec<&str>, request: &Request<Body>) ->
+        Result<Option<Response<Body>>, Self::Error>
+    {
+        Ok(Some(
+            Response::builder()
+                .status(200)
+                .body(Body::from(serde_json::to_string(&self.0).unwrap()))
+                .unwrap()
+        ))
+    }
+}
+
+impl<T> From<Resource<T>> for ODataResource<T>
+where T: Serialize + ResourceMetadata + Dispatch {
+    fn from(value: Resource<T>) -> Self {
+        ODataResource(value)
+    }
+}
+
+impl<T> serde::Serialize for ODataResource<T>
+where T: Serialize + ResourceMetadata + Dispatch {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) ->
+        Result<S::Ok, S::Error>
+    { self.0.serialize(serializer) }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // RouteFuture
 ////
 
-pub struct RouteFuture<T>(Arc<Resource<T>>)
-where T: Serialize + ResourceMetadata + Clone;
+pub struct RouteFuture<T>
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
+    resource: Arc<ODataResource<T>>,
+    request: Request<Body>,
+}
 
 impl<T> core::future::Future for RouteFuture<T>
-where T: Serialize + ResourceMetadata + Clone {
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
     type Output = Result<Response<Body>, Infallible>;
     fn poll(self: Pin<&mut Self>, _context: &mut Context<'_>) ->
         Poll<Self::Output>
     {
-        Poll::Ready(Ok(
-            Response::builder()
-                .status(200)
-                .body(Body::from(serde_json::to_string(&*self.0).unwrap()))
-                .unwrap()
-        ))
+        let result = (&*self.resource).dispatch(Vec::new(), &self.request);
+        let response: Response<Body> = match result.unwrap() {
+            Some(response) => response,
+            None => NotFound.into(),
+        };
+        Poll::Ready(Ok(response))
     }
 }
 
@@ -68,11 +128,11 @@ where T: Serialize + ResourceMetadata + Clone {
 ////
 
 #[derive(Clone)]
-pub struct ResourceService<T>(Arc<Resource<T>>)
-where T: Serialize + ResourceMetadata + Clone;
+pub struct ResourceService<T>(Arc<ODataResource<T>>)
+where T: Serialize + ResourceMetadata + Clone + Dispatch;
 
 impl<T> Service<Request<Body>> for ResourceService<T>
-where T: Serialize + ResourceMetadata + Clone {
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
     type Response = Response<Body>;
     type Error = Infallible;
     type Future = RouteFuture<T>;
@@ -80,14 +140,14 @@ where T: Serialize + ResourceMetadata + Clone {
         Poll<Result<(), Self::Error>>
     { Ok(()).into() }
 
-    fn call(&mut self, _request: Request<Body>) -> Self::Future {
-        RouteFuture(self.0.clone())
+    fn call(&mut self, request: Request<Body>) -> Self::Future {
+        RouteFuture { resource: self.0.clone(), request }
     }
 }
 
-impl<T> From<Resource<T>> for ResourceService<T>
-where T: Serialize + ResourceMetadata + Clone {
-    fn from(resource: Resource<T>) -> Self {
+impl<T> From<ODataResource<T>> for ResourceService<T>
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
+    fn from(resource: ODataResource<T>) -> Self {
         ResourceService(Arc::new(resource))
     }
 }
@@ -97,10 +157,10 @@ where T: Serialize + ResourceMetadata + Clone {
 ////
 
 pub struct ServiceFactory<T>(ResourceService<T>)
-where T: Serialize + ResourceMetadata + Clone;
+where T: Serialize + ResourceMetadata + Clone + Dispatch;
 
 impl<R, T> Service<R> for ServiceFactory<T>
-where T: Serialize + ResourceMetadata + Clone {
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
     type Response = ResourceService<T>;
     type Error = Infallible;
     type Future = Ready<Result<Self::Response, Self::Error>>;
@@ -114,7 +174,7 @@ where T: Serialize + ResourceMetadata + Clone {
 }
 
 impl<T> From<ResourceService<T>> for ServiceFactory<T>
-where T: Serialize + ResourceMetadata + Clone {
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
     fn from(service: ResourceService<T>) -> Self {
         ServiceFactory(service)
     }

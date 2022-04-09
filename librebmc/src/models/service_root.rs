@@ -7,7 +7,7 @@
 //
 // CREATED:         03/28/2022
 //
-// LAST EDITED:     04/03/2022
+// LAST EDITED:     04/09/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,13 +30,16 @@
 // IN THE SOFTWARE.
 ////
 
+use std::convert::Infallible;
 use std::default::Default;
 
 use odata;
 use derive_builder::Builder;
 use uuid::Uuid;
+use hyper::{Request, Response, Body};
 
 use crate::models::ComputerSystemCollection;
+use crate::service::Dispatch;
 
 const SCHEMA_VERSION: &'static str = "1.6.0";
 const DEFAULT_NAME: &'static str = "Root Service";
@@ -85,6 +88,13 @@ impl odata::Serialize for ServiceRoot {
         serializer.serialize_field("UUID", &self.uuid)?;
         serializer.serialize_field("Systems", &self.systems)
     }
+}
+
+impl Dispatch for ServiceRoot {
+    type Error = Infallible;
+    fn dispatch(&self, components: Vec<&str>, request: &Request<Body>) ->
+        Result<Option<Response<Body>>, Self::Error>
+    { unimplemented!() }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

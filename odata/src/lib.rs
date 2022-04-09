@@ -8,7 +8,7 @@
 //
 // CREATED:         04/01/2022
 //
-// LAST EDITED:     04/05/2022
+// LAST EDITED:     04/09/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -81,6 +81,9 @@ impl<T: Serialize + ResourceMetadata> Resource<T> {
     pub fn new(odata_id: PathBuf, resource: T) -> Self {
         Resource { odata_id, resource, odata_type: T::ODATA_TYPE }
     }
+
+    pub fn get(&self) -> &T { &self.resource }
+    pub fn get_mut(&mut self) -> &mut T { &mut self.resource }
 
     pub fn get_id(&self) -> Link {
         self.odata_id.to_owned().into()
