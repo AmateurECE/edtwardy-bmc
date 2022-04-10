@@ -40,7 +40,7 @@ use uuid::Uuid;
 use hyper::{Request, Response, Body};
 
 use crate::models::ComputerSystemCollection;
-use crate::service::Dispatch;
+use crate::service::{Dispatch, ODataResource};
 
 const SCHEMA_VERSION: &'static str = "1.6.0";
 const DEFAULT_NAME: &'static str = "Root Service";
@@ -61,33 +61,28 @@ pub struct ServiceRoot {
     #[builder(default)]
     uuid: Uuid,
 
-    #[builder(default, setter(custom))]
-    systems: Option<odata::Link>,
+    #[builder(default)]
+    systems: Option<ODataResource<ComputerSystemCollection>>,
 }
 
 impl odata::ResourceMetadata for ServiceRoot {
     const ODATA_TYPE: &'static str = "#ServiceRoot.v1_12_0.ServiceRoot";
 }
 
-impl ServiceRootBuilder {
-    pub fn systems(
-        &mut self, systems: &odata::Resource<ComputerSystemCollection>
-    ) -> &Self {
-        self.systems = Some(Some(systems.get_id()));
-        self
-    }
-}
-
 impl odata::Serialize for ServiceRoot {
     const CARDINALITY: usize = 4;
-    fn serialize<S: serde::ser::SerializeStruct>(&self, serializer: &mut S) ->
+    fn serialize<S>(&self, serializer: &mut S, me: &Path) ->
         Result<(), S::Error>
+    where S: serde::ser::SerializeStruct
     {
         serializer.serialize_field("Id", &self.id)?;
         serializer.serialize_field("Name", &self.name)?;
         serializer.serialize_field("RedfishVersion", &self.redfish_version)?;
-        serializer.serialize_field("UUID", &self.uuid)?;
-        serializer.serialize_field("Systems", &self.systems)
+        if let Some(systems) = &self.systems {
+            serializer.serialize_field(
+                "Systems", &systems.as_ref().get_id().resolve(me))?;
+        }
+        serializer.serialize_field("UUID", &self.uuid)
     }
 }
 
@@ -95,7 +90,12 @@ impl Dispatch for ServiceRoot {
     type Error = Infallible;
     fn dispatch(&self, path: &Path, request: &Request<Body>) ->
         Result<Option<Response<Body>>, Self::Error>
-    { unimplemented!() }
+    {
+        match &self.systems {
+            Some(systems) => systems.dispatch(path, request),
+            None => Ok(None),
+        }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

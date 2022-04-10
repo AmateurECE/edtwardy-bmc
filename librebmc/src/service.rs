@@ -7,7 +7,7 @@
 //
 // CREATED:         03/20/2022
 //
-// LAST EDITED:     04/09/2022
+// LAST EDITED:     04/10/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -88,10 +88,10 @@ pub trait Dispatch {
 ////
 
 pub struct ODataResource<T>(Resource<T>)
-where T: Serialize + ResourceMetadata + Dispatch;
+where T: Serialize + ResourceMetadata + Clone + Dispatch;
 
 impl<T> Dispatch for ODataResource<T>
-where T: Serialize + ResourceMetadata + Dispatch {
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
     type Error = <T as Dispatch>::Error;
     fn dispatch(&self, path: &Path, request: &Request<Body>) ->
         Result<Option<Response<Body>>, Self::Error>
@@ -111,8 +111,9 @@ where T: Serialize + ResourceMetadata + Dispatch {
         }
 
         else if path.starts_with(this_url.as_ref()) {
-            self.0.get().dispatch(
-                path.strip_prefix(this_url).unwrap(), request)
+            let sub_path = PathBuf::from("/").join(
+                path.strip_prefix(this_url).unwrap());
+            self.0.get().dispatch(&sub_path, request)
         }
 
         else {
@@ -122,17 +123,29 @@ where T: Serialize + ResourceMetadata + Dispatch {
 }
 
 impl<T> From<Resource<T>> for ODataResource<T>
-where T: Serialize + ResourceMetadata + Dispatch {
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
     fn from(value: Resource<T>) -> Self {
         ODataResource(value)
     }
 }
 
 impl<T> serde::Serialize for ODataResource<T>
-where T: Serialize + ResourceMetadata + Dispatch {
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
     fn serialize<S: serde::Serializer>(&self, serializer: S) ->
         Result<S::Ok, S::Error>
     { self.0.serialize(serializer) }
+}
+
+impl<T> Clone for ODataResource<T>
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
+    fn clone(&self) -> Self {
+        Resource::new(self.0.get_id().into(), self.0.get().clone()).into()
+    }
+}
+
+impl<T> AsRef<Resource<T>> for ODataResource<T>
+where T: Serialize + ResourceMetadata + Clone + Dispatch {
+    fn as_ref(&self) -> &Resource<T> { &self.0 }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

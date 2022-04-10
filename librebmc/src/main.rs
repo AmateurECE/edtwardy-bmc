@@ -42,9 +42,13 @@ use crate::service::{ODataResource, ResourceService, ServiceFactory};
 
 #[tokio::main]
 async fn main() {
+    let systems = ComputerSystemCollectionBuilder::default().build().unwrap();
     let service: ODataResource<_> = Resource::new(
         PathBuf::from("/redfish/v1"),
-        ServiceRootBuilder::default().build().unwrap()).into();
+        ServiceRootBuilder::default()
+            .systems(ODataResource::from(Resource::new(
+                PathBuf::from("/Systems"), systems)))
+            .build().unwrap()).into();
     let service: ResourceService<_> = service.into();
 
     hyper::Server::bind(&"127.0.0.1:3000".parse().unwrap())

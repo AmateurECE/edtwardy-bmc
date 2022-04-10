@@ -7,7 +7,7 @@
 //
 // CREATED:         04/03/2022
 //
-// LAST EDITED:     04/03/2022
+// LAST EDITED:     04/09/2022
 //
 // Copyright 2022, Ethan D. Twardy
 //
@@ -30,11 +30,16 @@
 // IN THE SOFTWARE.
 ////
 
+use std::convert::Infallible;
 use std::default::Default;
+use std::path::Path;
 
+use hyper::{Body, Request, Response};
 use serde;
 use derive_builder::Builder;
 use odata;
+
+use crate::service::Dispatch;
 
 const DEFAULT_NAME: &'static str = "Computer System Collection";
 
@@ -52,13 +57,21 @@ impl odata::ResourceMetadata for ComputerSystemCollection {
 
 impl odata::Serialize for ComputerSystemCollection {
     const CARDINALITY: usize = 1;
-    fn serialize<S: serde::ser::SerializeStruct>(&self, serializer: &mut S) ->
+    fn serialize<S>(&self, serializer: &mut S, _me: &Path) ->
         Result<(), S::Error>
+    where S: serde::ser::SerializeStruct
     {
         serializer.serialize_field("Name", &self.name)
         // state.serialize_field("Members@odata.count", &self.members.len())?;
         // state.serialize_field("Members", &self.members)?;
     }
+}
+
+impl Dispatch for ComputerSystemCollection {
+    type Error = Infallible;
+    fn dispatch(&self, _path: &Path, _request: &Request<Body>) ->
+        Result<Option<Response<Body>>, Self::Error>
+    { Ok(None) }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -31,6 +31,7 @@
 // IN THE SOFTWARE.
 ////
 
+use core::convert::Infallible;
 use std::path::{Path, PathBuf};
 use serde::{self, ser::SerializeStruct};
 
@@ -38,8 +39,9 @@ use serde::{self, ser::SerializeStruct};
 pub trait ResourceMetadata { const ODATA_TYPE: &'static str; }
 pub trait Serialize {
     const CARDINALITY: usize;
-    fn serialize<S: serde::ser::SerializeStruct>(&self, serializer: &mut S) ->
-        Result<(), S::Error>;
+    fn serialize<S>(&self, serializer: &mut S, me: &Path) ->
+        Result<(), S::Error>
+    where S: serde::ser::SerializeStruct;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -48,6 +50,14 @@ pub trait Serialize {
 
 #[derive(Clone)]
 pub struct Link(PathBuf);
+impl Link {
+    pub fn resolve(&self, root: &Path) -> Self {
+        root.to_owned().join(
+            self.0.strip_prefix("/").or::<Infallible>(Ok(&self.0)).unwrap()
+        ).into()
+    }
+}
+
 impl AsRef<Path> for Link {
     fn as_ref(&self) -> &Path { &self.0 }
 }
@@ -64,6 +74,12 @@ impl serde::Serialize for Link {
 
 impl From<PathBuf> for Link {
     fn from(value: PathBuf) -> Self { Link(value) }
+}
+
+impl Into<PathBuf> for Link {
+    fn into(self) -> PathBuf {
+        self.0
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -98,7 +114,7 @@ impl<T: Serialize + ResourceMetadata> serde::Serialize for Resource<T> {
             self.odata_type, 2 + T::CARDINALITY)?;
         state.serialize_field("@odata.id", &self.odata_id)?;
         state.serialize_field("@odata.type", &self.odata_type)?;
-        self.resource.serialize(&mut state)?;
+        self.resource.serialize(&mut state, &self.odata_id)?;
         state.end()
     }
 }
